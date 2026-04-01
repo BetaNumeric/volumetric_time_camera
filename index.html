@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Time Volume Camera</title>
+    <title>Time Volume Camera v1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -49,10 +49,10 @@
             <div class="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
             </div>
-            <div class="text-center">
+            <div class="text-center px-6">
                 <h1 class="text-xl font-bold tracking-widest uppercase mb-2">Time Volume</h1>
-                <p class="text-xs text-neutral-500 uppercase tracking-widest mb-8">Visualizer</p>
-                <button id="initBtn" class="px-10 py-4 bg-white text-black rounded-full font-black uppercase tracking-tighter active:scale-95 transition-transform">
+                <p class="text-xs text-neutral-500 uppercase tracking-widest mb-8">Long Exposure Interface</p>
+                <button id="initBtn" class="px-12 py-4 bg-white text-black rounded-full font-black uppercase tracking-tighter active:scale-95 transition-transform">
                     Initialize System
                 </button>
             </div>
@@ -61,8 +61,8 @@
         <!-- Error State -->
         <div id="error-view" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-black p-8 text-center z-50">
             <div class="text-red-500 text-5xl mb-4">⚠️</div>
-            <h2 class="text-2xl font-bold">Connection Failed</h2>
-            <p id="error-msg" class="text-neutral-400 mt-4 max-w-xs text-sm">Could not access hardware.</p>
+            <h2 class="text-2xl font-bold">Hardware Connection Failed</h2>
+            <p id="error-msg" class="text-neutral-400 mt-4 max-w-xs text-sm">Could not access camera.</p>
             <button onclick="window.location.reload()" class="mt-8 px-8 py-3 bg-neutral-800 text-white rounded-full font-bold uppercase tracking-wider text-xs">
                 Tap to Retry
             </button>
@@ -75,10 +75,6 @@
         <div id="hud" class="hidden absolute top-8 left-8 flex items-center space-x-3 bg-red-600 px-5 py-2.5 rounded-full animate-pulse shadow-2xl z-20">
             <div class="w-3 h-3 bg-white rounded-full"></div>
             <span class="text-xs font-black uppercase tracking-[0.2em]">Recording</span>
-        </div>
-
-        <div id="readyHud" class="hidden absolute top-8 right-8 text-neutral-500 text-[10px] tracking-widest uppercase pointer-events-none bg-black/40 px-3 py-1 rounded-full border border-white/5">
-            System Ready
         </div>
     </div>
 
@@ -112,11 +108,12 @@
         </button>
     </div>
 
-    <!-- Video element is technically in DOM but invisible -->
+    <!-- Hidden Video and Buffer -->
     <video id="sourceVideo" autoplay playsinline muted></video>
+    <canvas id="bufferCanvas" style="display:none;"></canvas>
 
     <div class="absolute bottom-4 text-[9px] text-neutral-700 uppercase tracking-[0.4em] w-full text-center pointer-events-none font-bold">
-        Luminous Sculpture Interface v1.3
+        Luminous Sculpture Interface v1.4
     </div>
 
     <script>
@@ -124,13 +121,16 @@
         const canvas = document.getElementById('stackCanvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         
+        // Secondary canvas to fix iOS lighten issues
+        const bufferCanvas = document.getElementById('bufferCanvas');
+        const bufferCtx = bufferCanvas.getContext('2d', { willReadFrequently: true });
+        
         const initBtn = document.getElementById('initBtn');
         const startOverlay = document.getElementById('startOverlay');
         const triggerBtn = document.getElementById('triggerBtn');
         const resetBtn = document.getElementById('resetBtn');
         const saveBtn = document.getElementById('saveBtn');
         const hud = document.getElementById('hud');
-        const readyHud = document.getElementById('readyHud');
         const errorView = document.getElementById('error-view');
         
         let isCapturing = false;
@@ -147,21 +147,25 @@
                 };
 
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // Immediately set stream and listener
                 video.srcObject = stream;
                 
-                // Define the callback BEFORE calling play to avoid missing the event
                 video.onplaying = () => {
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
+                    bufferCanvas.width = video.videoWidth;
+                    bufferCanvas.height = video.videoHeight;
+                    
+                    // Start with black slate
                     ctx.fillStyle = 'black';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     
                     startOverlay.classList.add('hidden');
-                    readyHud.classList.remove('hidden');
                     render();
                 };
 
-                // Explicit play for mobile compliance
+                // Trigger play manually
                 await video.play();
 
             } catch (err) {
@@ -169,16 +173,25 @@
                 startOverlay.classList.add('hidden');
                 errorView.classList.remove('hidden');
                 document.getElementById('error-msg').innerText = err.name === 'NotAllowedError' 
-                    ? "Permission denied. Please enable camera access in settings." 
-                    : err.message || "Could not access camera.";
+                    ? "Camera permission was denied." 
+                    : "Hardware error: " + (err.message || "Unknown issue");
             }
         }
 
         function render() {
-            // Only perform canvas operations if we are actively capturing
-            if (isCapturing && video.readyState === video.HAVE_ENOUGH_DATA) {
-                ctx.globalCompositeOperation = 'lighten';
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                // Step 1: Draw video to buffer (fixes iOS composite bugs)
+                bufferCtx.drawImage(video, 0, 0, bufferCanvas.width, bufferCanvas.height);
+                
+                if (!isCapturing) {
+                    // Preview mode: overwrite canvas with buffer
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.drawImage(bufferCanvas, 0, 0, canvas.width, canvas.height);
+                } else {
+                    // Recording mode: lighten composite with buffer
+                    ctx.globalCompositeOperation = 'lighten';
+                    ctx.drawImage(bufferCanvas, 0, 0, canvas.width, canvas.height);
+                }
             }
             requestAnimationFrame(render);
         }
@@ -188,7 +201,7 @@
         triggerBtn.addEventListener('click', () => {
             if (!isCapturing) {
                 // START RECORDING
-                // Ensure starting from a clean black slate
+                // Wipe to black so the sculpture starts on a clean slate
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.fillStyle = 'black';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -199,7 +212,6 @@
                 document.getElementById('iconPlay').classList.add('hidden');
                 document.getElementById('iconStop').classList.remove('hidden');
                 hud.classList.remove('hidden');
-                readyHud.classList.add('hidden');
                 document.getElementById('pingRing').classList.remove('hidden');
             } else {
                 // STOP RECORDING
@@ -209,7 +221,6 @@
                 document.getElementById('iconPlay').classList.remove('hidden');
                 document.getElementById('iconStop').classList.add('hidden');
                 hud.classList.add('hidden');
-                readyHud.classList.remove('hidden');
                 document.getElementById('pingRing').classList.add('hidden');
             }
         });
