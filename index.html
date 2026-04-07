@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -59,6 +60,20 @@
             opacity: 0;
             pointer-events: none;
         }
+        .control-icon {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+            display: block;
+            filter: brightness(0) saturate(100%) invert(43%) sepia(6%) saturate(329%) hue-rotate(183deg) brightness(94%) contrast(86%);
+        }
+        .overlay-icon {
+            width: 20px;
+            height: 20px;
+            object-fit: contain;
+            display: block;
+            filter: brightness(0) saturate(100%) invert(100%);
+        }
     </style>
 </head>
 <body class="fixed inset-0 flex flex-col items-center">
@@ -100,12 +115,34 @@
             <span class="text-xs font-black uppercase tracking-[0.2em]">Recording</span>
         </div>
 
+        <button id="settingsBtn" class="absolute top-6 left-6 w-12 h-12 rounded-full bg-black/80 border border-white/10 text-white shadow-2xl z-20 flex items-center justify-center active:scale-95 transition-transform" aria-label="Open settings">
+            <img src="./icons/settings.png" alt="" class="overlay-icon" draggable="false">
+        </button>
+
         <button id="closePreviewBtn" class="hidden absolute top-6 right-6 w-12 h-12 rounded-full bg-black/80 border border-white/10 text-white shadow-2xl z-20 flex items-center justify-center active:scale-95 transition-transform" aria-label="Close result and return to preview">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                 <path d="M6 6l12 12"></path>
                 <path d="M18 6L6 18"></path>
             </svg>
         </button>
+
+        <div id="settingsPanel" class="hidden absolute inset-0 z-40">
+            <button id="settingsBackdrop" class="absolute inset-0 bg-black/70" aria-label="Close settings"></button>
+            <div class="absolute top-20 left-6 right-6 max-w-sm mx-auto rounded-3xl border border-white/10 bg-neutral-950/95 backdrop-blur-md shadow-2xl p-6">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-black uppercase tracking-[0.2em] text-white">Settings</h2>
+                    <button id="closeSettingsBtn" class="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center active:scale-95 transition-transform" aria-label="Close settings">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                            <path d="M6 6l12 12"></path>
+                            <path d="M18 6L6 18"></path>
+                        </svg>
+                    </button>
+                </div>
+                <p class="text-sm text-neutral-400 leading-relaxed">
+                    Settings panel placeholder. We can add capture options here next.
+                </p>
+            </div>
+        </div>
     </div>
 
     <!-- Controls -->
@@ -113,7 +150,7 @@
         
         <button id="resetBtn" class="group flex flex-col items-center space-y-2 active:scale-90 transition-transform">
             <div class="p-5 rounded-2xl bg-neutral-900 text-neutral-500 border border-white/5">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6"/></svg>
+                <img src="./icons/delete.png" alt="" class="control-icon" draggable="false">
             </div>
             <span class="text-[9px] uppercase tracking-widest font-bold text-neutral-600">Clear</span>
         </button>
@@ -132,7 +169,7 @@
 
         <button id="saveBtn" class="group flex flex-col items-center space-y-2 active:scale-90 transition-transform">
             <div class="p-5 rounded-2xl bg-neutral-900 text-neutral-500 border border-white/5">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4M7 10l5 5 5-5M12 15V3"/></svg>
+                <img src="./icons/download.png" alt="" class="control-icon" draggable="false">
             </div>
             <span class="text-[9px] uppercase tracking-widest font-bold text-neutral-600">Save JPG</span>
         </button>
@@ -167,6 +204,10 @@
         const startOverlay = document.getElementById('startOverlay');
         const triggerBtn = document.getElementById('triggerBtn');
         const resetBtn = document.getElementById('resetBtn');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const settingsBackdrop = document.getElementById('settingsBackdrop');
+        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
         const closePreviewBtn = document.getElementById('closePreviewBtn');
         const saveBtn = document.getElementById('saveBtn');
         const hud = document.getElementById('hud');
@@ -261,6 +302,14 @@
             hud.classList.toggle('hidden', !isRecording);
             pingRing.classList.toggle('hidden', !isRecording);
             closePreviewBtn.classList.toggle('hidden', !hasCapture);
+        }
+
+        function openSettings() {
+            settingsPanel.classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            settingsPanel.classList.add('hidden');
         }
 
         function clearCompositeCanvas() {
@@ -602,6 +651,7 @@
         }
 
         function teardownCamera() {
+            closeSettings();
             clearReviewImage();
             stopRenderLoop();
             stopStream();
@@ -610,6 +660,9 @@
         initBtn.addEventListener('click', startSystem);
         triggerBtn.addEventListener('click', handleTriggerClick);
         resetBtn.addEventListener('click', resetCapture);
+        settingsBtn.addEventListener('click', openSettings);
+        settingsBackdrop.addEventListener('click', closeSettings);
+        closeSettingsBtn.addEventListener('click', closeSettings);
         closePreviewBtn.addEventListener('click', closeReviewCapture);
         saveBtn.addEventListener('click', saveCapture);
         document.addEventListener('visibilitychange', handleVisibilityChange);
