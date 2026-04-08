@@ -156,9 +156,35 @@
                             </svg>
                         </button>
                     </div>
-                    <p class="text-sm text-neutral-400 leading-relaxed">
-                        Settings placeholder. We can add controls here later.
-                    </p>
+                    <div class="space-y-4">
+                        <label class="block rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                            <div class="flex items-center justify-between gap-4">
+                                <span class="text-[11px] font-black uppercase tracking-[0.18em] text-white">Blend</span>
+                                <span id="stackBlendModeValue" class="text-[11px] uppercase tracking-[0.18em] text-neutral-400">Brightest</span>
+                            </div>
+                            <select id="stackBlendModeSelect" class="mt-3 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none">
+                                <option value="lighten">Brightest</option>
+                                <option value="mean">Mean</option>
+                                <option value="median">Median</option>
+                            </select>
+                        </label>
+
+                        <label id="stackOpacityField" class="block rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                            <div class="flex items-center justify-between gap-4">
+                                <span class="text-[11px] font-black uppercase tracking-[0.18em] text-white">Strength</span>
+                                <span id="stackOpacityValue" class="text-[11px] uppercase tracking-[0.18em] text-neutral-400">100%</span>
+                            </div>
+                            <input id="stackOpacitySlider" type="range" min="5" max="100" step="1" value="100" class="mt-3 w-full accent-white">
+                        </label>
+
+                        <label id="medianFrameCountField" class="hidden block rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                            <div class="flex items-center justify-between gap-4">
+                                <span class="text-[11px] font-black uppercase tracking-[0.18em] text-white">Median Frames</span>
+                                <span id="medianFrameCountValue" class="text-[11px] uppercase tracking-[0.18em] text-neutral-400">3</span>
+                            </div>
+                            <input id="medianFrameCountSlider" type="range" min="3" max="7" step="2" value="3" class="mt-3 w-full accent-white">
+                        </label>
+                    </div>
                 </div>
             </div>
         </div>
@@ -197,6 +223,7 @@
     <!-- Hidden Video and Buffer -->
     <video id="sourceVideo" autoplay playsinline muted></video>
     <canvas id="bufferCanvas" style="display:none;"></canvas>
+    <canvas id="blendCanvas" style="display:none;"></canvas>
 
     <div class="absolute bottom-4 text-[9px] text-neutral-700 uppercase tracking-[0.4em] w-full text-center pointer-events-none font-bold">
         Luminous Sculpture Interface v1.4
@@ -217,7 +244,9 @@
 
         // Secondary canvas to fix iOS lighten issues
         const bufferCanvas = document.getElementById('bufferCanvas');
-        const bufferCtx = bufferCanvas.getContext('2d', { alpha: false });
+        const bufferCtx = bufferCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
+        const blendCanvas = document.getElementById('blendCanvas');
+        const blendCtx = blendCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
 
         const initBtn = document.getElementById('initBtn');
         const startOverlay = document.getElementById('startOverlay');
@@ -227,6 +256,14 @@
         const settingsPanel = document.getElementById('settingsPanel');
         const settingsBackdrop = document.getElementById('settingsBackdrop');
         const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+        const stackBlendModeSelect = document.getElementById('stackBlendModeSelect');
+        const stackBlendModeValue = document.getElementById('stackBlendModeValue');
+        const stackOpacityField = document.getElementById('stackOpacityField');
+        const stackOpacitySlider = document.getElementById('stackOpacitySlider');
+        const stackOpacityValue = document.getElementById('stackOpacityValue');
+        const medianFrameCountField = document.getElementById('medianFrameCountField');
+        const medianFrameCountSlider = document.getElementById('medianFrameCountSlider');
+        const medianFrameCountValue = document.getElementById('medianFrameCountValue');
         const closePreviewBtn = document.getElementById('closePreviewBtn');
         const saveBtn = document.getElementById('saveBtn');
         const hud = document.getElementById('hud');
@@ -263,11 +300,168 @@
         let isStarting = false;
         let reviewImageUrl = null;
         const supportsCaptureSharing = typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && typeof File === 'function';
+        const STACK_BLEND_MODES = {
+            lighten: {
+                label: 'Brightest',
+                composite: 'lighten',
+                opacity: 1,
+                processor: 'raw'
+            },
+            mean: {
+                label: 'Mean',
+                composite: 'source-over',
+                opacity: 1,
+                processor: 'mean'
+            },
+            median: {
+                label: 'Median',
+                composite: 'lighten',
+                opacity: 1,
+                processor: 'median'
+            }
+        };
+        let stackBlendModeKey = 'lighten';
+        let stackBlendMode = STACK_BLEND_MODES.lighten.composite;
+        let stackFrameOpacity = STACK_BLEND_MODES.lighten.opacity;
+        let stackFrameProcessor = STACK_BLEND_MODES.lighten.processor;
+        let stackMedianFrameCount = 3;
+        let stackFrameHistory = [];
+        let stackMeanAccumulator = null;
+        let stackMeanFrameCount = 0;
 
         function setButtonDisabled(button, disabled) {
             button.disabled = disabled;
             button.classList.toggle('opacity-40', disabled);
             button.classList.toggle('pointer-events-none', disabled);
+        }
+
+        function syncStackSettingsUi() {
+            const mode = STACK_BLEND_MODES[stackBlendModeKey] || STACK_BLEND_MODES.lighten;
+            stackBlendModeSelect.value = stackBlendModeKey;
+            stackBlendModeValue.textContent = mode.label;
+            stackOpacitySlider.value = String(Math.round(stackFrameOpacity * 100));
+            stackOpacityValue.textContent = `${Math.round(stackFrameOpacity * 100)}%`;
+            stackOpacityField.classList.toggle('hidden', stackFrameProcessor === 'mean');
+            medianFrameCountField.classList.toggle('hidden', stackFrameProcessor !== 'median');
+            medianFrameCountSlider.value = String(stackMedianFrameCount);
+            medianFrameCountValue.textContent = String(stackMedianFrameCount);
+        }
+
+        function resetStackFrameHistory() {
+            stackFrameHistory = [];
+            stackMeanAccumulator = null;
+            stackMeanFrameCount = 0;
+        }
+
+        function copyFramePixels(sourcePixels) {
+            return new Uint8ClampedArray(sourcePixels);
+        }
+
+        function buildPreviousCurrentMeanFrame(currentPixels) {
+            const previousPixels = stackFrameHistory.length ? stackFrameHistory[stackFrameHistory.length - 1] : null;
+
+            if (!previousPixels) {
+                return null;
+            }
+
+            const output = blendCtx.createImageData(bufferCanvas.width, bufferCanvas.height);
+            const outputPixels = output.data;
+
+            for (let index = 0; index < currentPixels.length; index += 4) {
+                outputPixels[index] = Math.round((previousPixels[index] + currentPixels[index]) * 0.5);
+                outputPixels[index + 1] = Math.round((previousPixels[index + 1] + currentPixels[index + 1]) * 0.5);
+                outputPixels[index + 2] = Math.round((previousPixels[index + 2] + currentPixels[index + 2]) * 0.5);
+                outputPixels[index + 3] = 255;
+            }
+
+            return output;
+        }
+
+        function buildMeanFrame(currentPixels) {
+            const pixelCount = currentPixels.length / 4;
+
+            if (!stackMeanAccumulator || stackMeanAccumulator.length !== pixelCount * 3) {
+                stackMeanAccumulator = new Float32Array(pixelCount * 3);
+                stackMeanFrameCount = 0;
+            }
+
+            stackMeanFrameCount += 1;
+
+            const output = blendCtx.createImageData(bufferCanvas.width, bufferCanvas.height);
+            const outputPixels = output.data;
+            const previousWeight = (stackMeanFrameCount - 1) / stackMeanFrameCount;
+            const currentWeight = 1 / stackMeanFrameCount;
+
+            for (let index = 0, accumulatorIndex = 0; index < currentPixels.length; index += 4, accumulatorIndex += 3) {
+                const redMean = (stackMeanAccumulator[accumulatorIndex] * previousWeight) + (currentPixels[index] * currentWeight);
+                const greenMean = (stackMeanAccumulator[accumulatorIndex + 1] * previousWeight) + (currentPixels[index + 1] * currentWeight);
+                const blueMean = (stackMeanAccumulator[accumulatorIndex + 2] * previousWeight) + (currentPixels[index + 2] * currentWeight);
+
+                stackMeanAccumulator[accumulatorIndex] = redMean;
+                stackMeanAccumulator[accumulatorIndex + 1] = greenMean;
+                stackMeanAccumulator[accumulatorIndex + 2] = blueMean;
+
+                outputPixels[index] = Math.round(redMean);
+                outputPixels[index + 1] = Math.round(greenMean);
+                outputPixels[index + 2] = Math.round(blueMean);
+                outputPixels[index + 3] = 255;
+            }
+
+            return output;
+        }
+
+        function buildMedianFrame(currentPixels) {
+            const medianFrames = stackFrameHistory.slice(-(stackMedianFrameCount - 1));
+
+            if (medianFrames.length < (stackMedianFrameCount - 1)) {
+                return buildPreviousCurrentMeanFrame(currentPixels);
+            }
+
+            const sourceFrames = [...medianFrames, currentPixels];
+            const output = blendCtx.createImageData(bufferCanvas.width, bufferCanvas.height);
+            const outputPixels = output.data;
+
+            for (let index = 0; index < currentPixels.length; index += 4) {
+                const redSamples = sourceFrames.map((frame) => frame[index]).sort((a, b) => a - b);
+                const greenSamples = sourceFrames.map((frame) => frame[index + 1]).sort((a, b) => a - b);
+                const blueSamples = sourceFrames.map((frame) => frame[index + 2]).sort((a, b) => a - b);
+                const middleIndex = Math.floor(sourceFrames.length / 2);
+
+                outputPixels[index] = redSamples[middleIndex];
+                outputPixels[index + 1] = greenSamples[middleIndex];
+                outputPixels[index + 2] = blueSamples[middleIndex];
+                outputPixels[index + 3] = 255;
+            }
+
+            return output;
+        }
+
+        function buildStackFrameSource() {
+            if (stackFrameProcessor === 'raw') {
+                return bufferCanvas;
+            }
+
+            const currentFrame = bufferCtx.getImageData(0, 0, bufferCanvas.width, bufferCanvas.height);
+            const currentPixels = currentFrame.data;
+            const processedFrame = stackFrameProcessor === 'median'
+                ? buildMedianFrame(currentPixels)
+                : buildMeanFrame(currentPixels);
+
+            if (processedFrame) {
+                blendCtx.putImageData(processedFrame, 0, 0);
+            } else {
+                blendCtx.putImageData(currentFrame, 0, 0);
+            }
+
+            if (stackFrameProcessor === 'median') {
+                stackFrameHistory.push(copyFramePixels(currentPixels));
+
+                while (stackFrameHistory.length > stackMedianFrameCount) {
+                    stackFrameHistory.shift();
+                }
+            }
+
+            return blendCanvas;
         }
 
         function clearReviewImage() {
@@ -337,8 +531,10 @@
             }
 
             ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = 1;
             ctx.fillStyle = 'black';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            resetStackFrameHistory();
         }
 
         function startRenderLoop() {
@@ -483,10 +679,15 @@
 
             if (captureState === STATES.PREVIEW) {
                 ctx.globalCompositeOperation = 'source-over';
+                ctx.globalAlpha = 1;
                 ctx.drawImage(bufferCanvas, 0, 0, canvas.width, canvas.height);
             } else if (captureState === STATES.CAPTURING) {
-                ctx.globalCompositeOperation = 'lighten';
-                ctx.drawImage(bufferCanvas, 0, 0, canvas.width, canvas.height);
+                const stackFrameSource = buildStackFrameSource();
+                const frameOpacity = stackFrameProcessor === 'mean' ? 1 : stackFrameOpacity;
+                ctx.globalCompositeOperation = stackBlendMode;
+                ctx.globalAlpha = frameOpacity;
+                ctx.drawImage(stackFrameSource, 0, 0, canvas.width, canvas.height);
+                ctx.globalAlpha = 1;
             }
         }
 
@@ -528,6 +729,8 @@
                 canvas.height = video.videoHeight;
                 bufferCanvas.width = video.videoWidth;
                 bufferCanvas.height = video.videoHeight;
+                blendCanvas.width = video.videoWidth;
+                blendCanvas.height = video.videoHeight;
 
                 clearCompositeCanvas();
                 errorView.classList.add('hidden');
@@ -676,12 +879,40 @@
             stopStream();
         }
 
+        function handleStackBlendModeChange() {
+            const nextMode = STACK_BLEND_MODES[stackBlendModeSelect.value];
+            if (!nextMode) {
+                return;
+            }
+
+            stackBlendModeKey = stackBlendModeSelect.value;
+            stackBlendMode = nextMode.composite;
+            stackFrameOpacity = nextMode.opacity;
+            stackFrameProcessor = nextMode.processor;
+            resetStackFrameHistory();
+            syncStackSettingsUi();
+        }
+
+        function handleStackOpacityInput() {
+            stackFrameOpacity = Number(stackOpacitySlider.value) / 100;
+            stackOpacityValue.textContent = `${Math.round(stackFrameOpacity * 100)}%`;
+        }
+
+        function handleMedianFrameCountInput() {
+            stackMedianFrameCount = Number(medianFrameCountSlider.value);
+            medianFrameCountValue.textContent = String(stackMedianFrameCount);
+            resetStackFrameHistory();
+        }
+
         initBtn.addEventListener('click', startSystem);
         triggerBtn.addEventListener('click', handleTriggerClick);
         resetBtn.addEventListener('click', resetCapture);
         settingsBtn.addEventListener('click', openSettings);
         settingsBackdrop.addEventListener('click', closeSettings);
         closeSettingsBtn.addEventListener('click', closeSettings);
+        stackBlendModeSelect.addEventListener('change', handleStackBlendModeChange);
+        stackOpacitySlider.addEventListener('input', handleStackOpacityInput);
+        medianFrameCountSlider.addEventListener('input', handleMedianFrameCountInput);
         closePreviewBtn.addEventListener('click', closeReviewCapture);
         saveBtn.addEventListener('click', saveCapture);
         document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -696,6 +927,7 @@
             });
         }
 
+        syncStackSettingsUi();
         syncUi();
     </script>
 </body>
