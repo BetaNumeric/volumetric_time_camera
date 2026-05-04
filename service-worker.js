@@ -1,4 +1,4 @@
-const CACHE_NAME = 'volumetric-time-camera-v1.6';
+const CACHE_NAME = 'volumetric-time-camera-v1.7';
 const APP_SHELL = [
   './',
   './index.html',
@@ -11,6 +11,8 @@ const APP_SHELL = [
   './icons/download.png',
   './icons/delete.png',
   './icons/gallery.png',
+  './icons/maximize.png',
+  './icons/minimize.png',
   './icons/aperture.png'
 ];
 const APP_SHELL_URLS = new Set(
