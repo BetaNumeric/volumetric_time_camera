@@ -12,7 +12,7 @@
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon_32.png">
     <link rel="apple-touch-icon" href="./icons/icon_192.png">
-    <title>v1.5 Volumetric Time Camera</title>
+    <title>v1.6 Volumetric Time Camera</title>
     <link rel="stylesheet" href="./styles.css">
     <style>
         body {
@@ -321,6 +321,22 @@
                             </div>
                             <input id="medianFrameCountSlider" type="range" min="3" max="7" step="2" value="3" class="mt-3 w-full accent-white">
                         </label>
+
+                        <label class="block rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                            <div class="flex items-center justify-between gap-4">
+                                <span class="text-[11px] font-black uppercase tracking-[0.18em] text-white">Rolling Stack</span>
+                                <span id="rollingStackEnabledValue" class="text-[11px] uppercase tracking-[0.18em] text-neutral-400">Off</span>
+                            </div>
+                            <input id="rollingStackEnabledInput" type="checkbox" class="mt-3 accent-white" style="width: 1.25rem; height: 1.25rem;">
+                        </label>
+
+                        <label id="rollingStackWindowField" class="hidden block rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                            <div class="flex items-center justify-between gap-4">
+                                <span class="text-[11px] font-black uppercase tracking-[0.18em] text-white">Rolling Window</span>
+                                <span id="rollingStackWindowValue" class="text-[11px] uppercase tracking-[0.18em] text-neutral-400">25s</span>
+                            </div>
+                            <input id="rollingStackWindowSlider" type="range" min="5" max="60" step="1" value="25" class="mt-3 w-full accent-white">
+                        </label>
                     </div>
                 </div>
             </div>
@@ -380,7 +396,7 @@
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <div class="absolute bottom-4 text-[9px] text-neutral-700 uppercase tracking-[0.4em] w-full text-center pointer-events-none font-bold">
-        Luminous Sculpture Interface v1.4
+        Luminous Sculpture Interface v1.6
     </div>
 
     <script>
@@ -401,6 +417,10 @@
         const bufferCtx = bufferCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
         const blendCanvas = document.getElementById('blendCanvas');
         const blendCtx = blendCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
+        const rollingSampleCanvas = document.createElement('canvas');
+        const rollingSampleCtx = rollingSampleCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
+        const rollingCompositeCanvas = document.createElement('canvas');
+        const rollingCompositeCtx = rollingCompositeCanvas.getContext('2d', { alpha: false });
 
         const initBtn = document.getElementById('initBtn');
         const startOverlay = document.getElementById('startOverlay');
@@ -424,6 +444,11 @@
         const medianFrameCountField = document.getElementById('medianFrameCountField');
         const medianFrameCountSlider = document.getElementById('medianFrameCountSlider');
         const medianFrameCountValue = document.getElementById('medianFrameCountValue');
+        const rollingStackEnabledInput = document.getElementById('rollingStackEnabledInput');
+        const rollingStackEnabledValue = document.getElementById('rollingStackEnabledValue');
+        const rollingStackWindowField = document.getElementById('rollingStackWindowField');
+        const rollingStackWindowSlider = document.getElementById('rollingStackWindowSlider');
+        const rollingStackWindowValue = document.getElementById('rollingStackWindowValue');
         const closePreviewBtn = document.getElementById('closePreviewBtn');
         const saveBtn = document.getElementById('saveBtn');
         const hud = document.getElementById('hud');
@@ -486,6 +511,10 @@
                 processor: 'median'
             }
         };
+        const ROLLING_STACK_DEFAULT_WINDOW_SECONDS = 25;
+        const ROLLING_STACK_MAX_EDGE = 720;
+        const ROLLING_STACK_TARGET_SAMPLES = 120;
+        const ROLLING_STACK_MIN_SAMPLE_INTERVAL_MS = 125;
         let stackBlendModeKey = 'lighten';
         let stackBlendMode = STACK_BLEND_MODES.lighten.composite;
         let stackFrameOpacity = STACK_BLEND_MODES.lighten.opacity;
@@ -494,6 +523,12 @@
         let stackFrameHistory = [];
         let stackMeanAccumulator = null;
         let stackMeanFrameCount = 0;
+        let rollingStackEnabled = false;
+        let rollingStackWindowSeconds = ROLLING_STACK_DEFAULT_WINDOW_SECONDS;
+        let rollingStackFrames = [];
+        let rollingStackLastSampleAt = 0;
+        let rollingStackNeedsComposite = true;
+        let rollingStackMeanAccumulator = null;
 
         function setButtonDisabled(button, disabled) {
             button.disabled = disabled;
@@ -769,12 +804,225 @@
             medianFrameCountField.classList.toggle('hidden', stackFrameProcessor !== 'median');
             medianFrameCountSlider.value = String(stackMedianFrameCount);
             medianFrameCountValue.textContent = String(stackMedianFrameCount);
+            rollingStackEnabledInput.checked = rollingStackEnabled;
+            rollingStackEnabledValue.textContent = rollingStackEnabled ? 'On' : 'Off';
+            rollingStackWindowField.classList.toggle('hidden', !rollingStackEnabled);
+            rollingStackWindowSlider.value = String(rollingStackWindowSeconds);
+            rollingStackWindowValue.textContent = `${rollingStackWindowSeconds}s`;
         }
 
         function resetStackFrameHistory() {
             stackFrameHistory = [];
             stackMeanAccumulator = null;
             stackMeanFrameCount = 0;
+        }
+
+        function getRollingStackWindowMs() {
+            return rollingStackWindowSeconds * 1000;
+        }
+
+        function getRollingStackSampleIntervalMs() {
+            return Math.max(
+                ROLLING_STACK_MIN_SAMPLE_INTERVAL_MS,
+                Math.ceil(getRollingStackWindowMs() / ROLLING_STACK_TARGET_SAMPLES)
+            );
+        }
+
+        function resizeRollingStackBuffers() {
+            if (!bufferCanvas.width || !bufferCanvas.height) {
+                return;
+            }
+
+            const sourceEdge = Math.max(bufferCanvas.width, bufferCanvas.height);
+            const scale = Math.min(1, ROLLING_STACK_MAX_EDGE / sourceEdge);
+            const nextWidth = Math.max(1, Math.round(bufferCanvas.width * scale));
+            const nextHeight = Math.max(1, Math.round(bufferCanvas.height * scale));
+
+            if (rollingSampleCanvas.width === nextWidth && rollingSampleCanvas.height === nextHeight) {
+                return;
+            }
+
+            rollingSampleCanvas.width = nextWidth;
+            rollingSampleCanvas.height = nextHeight;
+            rollingCompositeCanvas.width = nextWidth;
+            rollingCompositeCanvas.height = nextHeight;
+            resetRollingStackFrames();
+        }
+
+        function resetRollingCompositeCanvas() {
+            if (!rollingCompositeCanvas.width || !rollingCompositeCanvas.height) {
+                return;
+            }
+
+            rollingCompositeCtx.globalCompositeOperation = 'source-over';
+            rollingCompositeCtx.globalAlpha = 1;
+            rollingCompositeCtx.fillStyle = 'black';
+            rollingCompositeCtx.fillRect(0, 0, rollingCompositeCanvas.width, rollingCompositeCanvas.height);
+        }
+
+        function resetRollingStackFrames() {
+            rollingStackFrames = [];
+            rollingStackLastSampleAt = 0;
+            rollingStackNeedsComposite = true;
+            rollingStackMeanAccumulator = null;
+            resetRollingCompositeCanvas();
+        }
+
+        function createRollingFrameCanvas(sourceCanvas) {
+            const frameCanvas = document.createElement('canvas');
+            frameCanvas.width = rollingSampleCanvas.width;
+            frameCanvas.height = rollingSampleCanvas.height;
+
+            const frameCtx = frameCanvas.getContext('2d', { alpha: false });
+            frameCtx.globalCompositeOperation = 'source-over';
+            frameCtx.globalAlpha = 1;
+            frameCtx.drawImage(sourceCanvas, 0, 0, frameCanvas.width, frameCanvas.height);
+
+            return frameCanvas;
+        }
+
+        function addRollingMeanFrame(framePixels) {
+            const pixelCount = framePixels.length / 4;
+
+            if (!rollingStackMeanAccumulator || rollingStackMeanAccumulator.length !== pixelCount * 3) {
+                rollingStackFrames = [];
+                rollingStackMeanAccumulator = new Float32Array(pixelCount * 3);
+            }
+
+            for (let index = 0, accumulatorIndex = 0; index < framePixels.length; index += 4, accumulatorIndex += 3) {
+                rollingStackMeanAccumulator[accumulatorIndex] += framePixels[index];
+                rollingStackMeanAccumulator[accumulatorIndex + 1] += framePixels[index + 1];
+                rollingStackMeanAccumulator[accumulatorIndex + 2] += framePixels[index + 2];
+            }
+        }
+
+        function removeRollingMeanFrame(framePixels) {
+            if (!rollingStackMeanAccumulator) {
+                return;
+            }
+
+            for (let index = 0, accumulatorIndex = 0; index < framePixels.length; index += 4, accumulatorIndex += 3) {
+                rollingStackMeanAccumulator[accumulatorIndex] -= framePixels[index];
+                rollingStackMeanAccumulator[accumulatorIndex + 1] -= framePixels[index + 1];
+                rollingStackMeanAccumulator[accumulatorIndex + 2] -= framePixels[index + 2];
+            }
+        }
+
+        function pruneRollingStackFrames(now) {
+            const oldestFrameTime = now - getRollingStackWindowMs();
+            let didPrune = false;
+
+            while (rollingStackFrames.length && rollingStackFrames[0].createdAt < oldestFrameTime) {
+                const expiredFrame = rollingStackFrames.shift();
+
+                if (expiredFrame.pixels) {
+                    removeRollingMeanFrame(expiredFrame.pixels);
+                }
+
+                didPrune = true;
+            }
+
+            if (didPrune) {
+                rollingStackNeedsComposite = true;
+            }
+
+            return didPrune;
+        }
+
+        function captureRollingStackFrame(now) {
+            if (!rollingSampleCanvas.width || !rollingSampleCanvas.height) {
+                return false;
+            }
+
+            const sampleIntervalMs = getRollingStackSampleIntervalMs();
+
+            if (rollingStackFrames.length && rollingStackLastSampleAt && now - rollingStackLastSampleAt < sampleIntervalMs) {
+                return false;
+            }
+
+            rollingStackLastSampleAt = now;
+
+            if (stackFrameProcessor === 'mean') {
+                rollingSampleCtx.globalCompositeOperation = 'source-over';
+                rollingSampleCtx.globalAlpha = 1;
+                rollingSampleCtx.drawImage(bufferCanvas, 0, 0, rollingSampleCanvas.width, rollingSampleCanvas.height);
+
+                const sampledFrame = rollingSampleCtx.getImageData(0, 0, rollingSampleCanvas.width, rollingSampleCanvas.height);
+                const framePixels = copyFramePixels(sampledFrame.data);
+                addRollingMeanFrame(framePixels);
+                rollingStackFrames.push({
+                    createdAt: now,
+                    pixels: framePixels
+                });
+            } else {
+                const stackFrameSource = buildStackFrameSource();
+                rollingStackFrames.push({
+                    createdAt: now,
+                    canvas: createRollingFrameCanvas(stackFrameSource)
+                });
+            }
+
+            rollingStackNeedsComposite = true;
+            return true;
+        }
+
+        function composeRollingMeanStack() {
+            resetRollingCompositeCanvas();
+
+            if (!rollingStackFrames.length || !rollingStackMeanAccumulator) {
+                return;
+            }
+
+            const output = rollingCompositeCtx.createImageData(rollingCompositeCanvas.width, rollingCompositeCanvas.height);
+            const outputPixels = output.data;
+            const frameCount = rollingStackFrames.length;
+
+            for (let index = 0, accumulatorIndex = 0; index < outputPixels.length; index += 4, accumulatorIndex += 3) {
+                outputPixels[index] = Math.round(rollingStackMeanAccumulator[accumulatorIndex] / frameCount);
+                outputPixels[index + 1] = Math.round(rollingStackMeanAccumulator[accumulatorIndex + 1] / frameCount);
+                outputPixels[index + 2] = Math.round(rollingStackMeanAccumulator[accumulatorIndex + 2] / frameCount);
+                outputPixels[index + 3] = 255;
+            }
+
+            rollingCompositeCtx.putImageData(output, 0, 0);
+        }
+
+        function composeRollingCanvasStack() {
+            resetRollingCompositeCanvas();
+
+            if (!rollingStackFrames.length) {
+                return;
+            }
+
+            rollingCompositeCtx.globalCompositeOperation = stackBlendMode;
+            rollingCompositeCtx.globalAlpha = stackFrameOpacity;
+
+            for (const frame of rollingStackFrames) {
+                rollingCompositeCtx.drawImage(frame.canvas, 0, 0, rollingCompositeCanvas.width, rollingCompositeCanvas.height);
+            }
+
+            rollingCompositeCtx.globalCompositeOperation = 'source-over';
+            rollingCompositeCtx.globalAlpha = 1;
+        }
+
+        function drawRollingStackFrame(now) {
+            resizeRollingStackBuffers();
+
+            const didPrune = pruneRollingStackFrames(now);
+            const didCapture = captureRollingStackFrame(now);
+
+            if (didPrune || didCapture || rollingStackNeedsComposite) {
+                if (stackFrameProcessor === 'mean') {
+                    composeRollingMeanStack();
+                } else {
+                    composeRollingCanvasStack();
+                }
+
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.globalAlpha = 1;
+                ctx.drawImage(rollingCompositeCanvas, 0, 0, canvas.width, canvas.height);
+                rollingStackNeedsComposite = false;
+            }
         }
 
         function copyFramePixels(sourcePixels) {
@@ -959,6 +1207,7 @@
             ctx.fillStyle = 'black';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             resetStackFrameHistory();
+            resetRollingStackFrames();
         }
 
         function startRenderLoop() {
@@ -1125,12 +1374,16 @@
                 ctx.globalAlpha = 1;
                 ctx.drawImage(bufferCanvas, 0, 0, canvas.width, canvas.height);
             } else if (captureState === STATES.CAPTURING) {
-                const stackFrameSource = buildStackFrameSource();
-                const frameOpacity = stackFrameProcessor === 'mean' ? 1 : stackFrameOpacity;
-                ctx.globalCompositeOperation = stackBlendMode;
-                ctx.globalAlpha = frameOpacity;
-                ctx.drawImage(stackFrameSource, 0, 0, canvas.width, canvas.height);
-                ctx.globalAlpha = 1;
+                if (rollingStackEnabled) {
+                    drawRollingStackFrame(performance.now());
+                } else {
+                    const stackFrameSource = buildStackFrameSource();
+                    const frameOpacity = stackFrameProcessor === 'mean' ? 1 : stackFrameOpacity;
+                    ctx.globalCompositeOperation = stackBlendMode;
+                    ctx.globalAlpha = frameOpacity;
+                    ctx.drawImage(stackFrameSource, 0, 0, canvas.width, canvas.height);
+                    ctx.globalAlpha = 1;
+                }
             }
         }
 
@@ -1174,6 +1427,7 @@
                 bufferCanvas.height = video.videoHeight;
                 blendCanvas.width = video.videoWidth;
                 blendCanvas.height = video.videoHeight;
+                resizeRollingStackBuffers();
 
                 clearCompositeCanvas();
                 errorView.classList.add('hidden');
@@ -1418,18 +1672,47 @@
             stackFrameOpacity = nextMode.opacity;
             stackFrameProcessor = nextMode.processor;
             resetStackFrameHistory();
+            resetRollingStackFrames();
+
+            if (captureState === STATES.CAPTURING) {
+                clearCompositeCanvas();
+            }
+
             syncStackSettingsUi();
         }
 
         function handleStackOpacityInput() {
             stackFrameOpacity = Number(stackOpacitySlider.value) / 100;
             stackOpacityValue.textContent = `${Math.round(stackFrameOpacity * 100)}%`;
+            rollingStackNeedsComposite = true;
         }
 
         function handleMedianFrameCountInput() {
             stackMedianFrameCount = Number(medianFrameCountSlider.value);
             medianFrameCountValue.textContent = String(stackMedianFrameCount);
             resetStackFrameHistory();
+            resetRollingStackFrames();
+        }
+
+        function handleRollingStackEnabledChange() {
+            rollingStackEnabled = rollingStackEnabledInput.checked;
+            clearCompositeCanvas();
+            syncStackSettingsUi();
+
+            if (captureState === STATES.CAPTURING) {
+                drawFrame();
+            }
+        }
+
+        function handleRollingStackWindowInput() {
+            rollingStackWindowSeconds = Number(rollingStackWindowSlider.value);
+            rollingStackWindowValue.textContent = `${rollingStackWindowSeconds}s`;
+            pruneRollingStackFrames(performance.now());
+            rollingStackNeedsComposite = true;
+
+            if (captureState === STATES.CAPTURING && rollingStackEnabled) {
+                drawFrame();
+            }
         }
 
         initBtn.addEventListener('click', startSystem);
@@ -1444,6 +1727,8 @@
         stackBlendModeSelect.addEventListener('change', handleStackBlendModeChange);
         stackOpacitySlider.addEventListener('input', handleStackOpacityInput);
         medianFrameCountSlider.addEventListener('input', handleMedianFrameCountInput);
+        rollingStackEnabledInput.addEventListener('change', handleRollingStackEnabledChange);
+        rollingStackWindowSlider.addEventListener('input', handleRollingStackWindowInput);
         closePreviewBtn.addEventListener('click', closeReviewCapture);
         saveBtn.addEventListener('click', saveCapture);
         document.addEventListener('visibilitychange', handleVisibilityChange);
