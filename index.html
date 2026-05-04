@@ -7,12 +7,12 @@
     <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Time Volume">
-    <meta name="description" content="Long-exposure camera interface for the Time Volume installation.">
+    <meta name="apple-mobile-web-app-title" content="Volumetric Time">
+    <meta name="description" content="Long-exposure camera interface for the Volumetric Time installation.">
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon_32.png">
     <link rel="apple-touch-icon" href="./icons/icon_192.png">
-    <title>Time Volume Camera</title>
+    <title>v1.3 Volumetric Time Camera</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -74,6 +74,13 @@
             display: block;
             filter: brightness(0) saturate(100%) invert(100%);
         }
+        .start-icon {
+            width: 44px;
+            height: 44px;
+            object-fit: contain;
+            display: block;
+            filter: brightness(0) saturate(100%) invert(100%);
+        }
         .settings-scroll {
             position: absolute;
             inset: 0;
@@ -91,6 +98,114 @@
             max-width: 24rem;
             margin: 0 auto;
         }
+        .image-folder-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+        @media (min-width: 640px) {
+            .image-folder-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+        .image-folder-card {
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 0.5rem;
+            background: rgba(255, 255, 255, 0.04);
+        }
+        .image-folder-preview {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            border: 0;
+            padding: 0;
+            background: #050505;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .image-folder-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .image-folder-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            padding: 0.5rem;
+        }
+        .image-folder-time {
+            min-width: 0;
+            color: rgb(163, 163, 163);
+            font-size: 0.625rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .image-folder-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            flex-shrink: 0;
+        }
+        .image-folder-action {
+            width: 2rem;
+            height: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.06);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .image-folder-action:active {
+            transform: scale(0.94);
+        }
+        .image-folder-action.danger {
+            color: rgb(248, 113, 113);
+        }
+        .image-folder-action img {
+            width: 1rem;
+            height: 1rem;
+            object-fit: contain;
+            display: block;
+            filter: brightness(0) saturate(100%) invert(100%);
+        }
+        .image-folder-action.danger img {
+            filter: brightness(0) saturate(100%) invert(61%) sepia(59%) saturate(1249%) hue-rotate(314deg) brightness(101%) contrast(94%);
+        }
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: max(8.25rem, calc(env(safe-area-inset-bottom) + 8.25rem));
+            z-index: 60;
+            max-width: min(22rem, calc(100vw - 2rem));
+            transform: translate(-50%, 0.5rem);
+            opacity: 0;
+            pointer-events: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 9999px;
+            background: rgba(10, 10, 10, 0.9);
+            padding: 0.75rem 1rem;
+            color: white;
+            font-size: 0.6875rem;
+            font-weight: 900;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            text-align: center;
+            transition: opacity 160ms ease, transform 160ms ease;
+        }
+        .toast.is-visible {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
     </style>
 </head>
 <body class="fixed inset-0 flex flex-col items-center">
@@ -101,10 +216,10 @@
         <!-- User Gesture Required Overlay -->
         <div id="startOverlay" class="absolute inset-0 flex flex-col items-center justify-center space-y-6 z-50 bg-black">
             <div class="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                <img src="./icons/aperture.png" alt="" class="start-icon" draggable="false">
             </div>
             <div class="text-center px-6">
-                <h1 class="text-xl font-bold tracking-widest uppercase mb-2">Time Volume</h1>
+                <h1 class="text-xl font-bold tracking-widest uppercase mb-2">Volumetric Time</h1>
                 <p class="text-xs text-neutral-500 uppercase tracking-widest mb-8">Long Exposure Interface</p>
                 <button id="initBtn" class="px-12 py-4 bg-white text-black rounded-full font-black uppercase tracking-tighter active:scale-95 transition-transform">
                     Initialize System
@@ -188,16 +303,36 @@
                 </div>
             </div>
         </div>
+
+        <div id="imageFolderPanel" class="hidden fixed inset-0 z-50">
+            <button id="imageFolderBackdrop" class="absolute inset-0 bg-black/75" aria-label="Close image folder"></button>
+            <section class="absolute inset-x-0 bottom-0 max-h-[78vh] overflow-hidden rounded-t-[2rem] border-t border-white/10 bg-neutral-950/95 backdrop-blur-md shadow-2xl">
+                <div class="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4">
+                    <h2 class="text-sm font-black uppercase tracking-[0.2em] text-white">Image Folder</h2>
+                    <button id="closeImageFolderBtn" class="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center active:scale-95 transition-transform" aria-label="Close image folder">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                            <path d="M6 6l12 12"></path>
+                            <path d="M18 6L6 18"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="max-h-[calc(78vh-73px)] overflow-y-auto p-4 pb-8">
+                    <p id="imageFolderEmpty" class="py-12 text-center text-[11px] font-black uppercase tracking-[0.18em] text-neutral-500">No captures yet</p>
+                    <div id="imageFolderGrid" class="image-folder-grid"></div>
+                </div>
+            </section>
+        </div>
     </div>
 
     <!-- Controls -->
     <div class="w-full bg-neutral-950 p-8 flex items-center justify-between border-t border-white/5 pb-14 z-30 max-w-3xl mx-auto">
         
-        <button id="resetBtn" class="group flex flex-col items-center space-y-2 active:scale-90 transition-transform">
-            <div class="p-5 rounded-2xl bg-neutral-900 text-neutral-500 border border-white/5">
-                <img src="./icons/delete.png" alt="" class="control-icon" draggable="false">
+        <button id="imageFolderBtn" class="group flex flex-col items-center space-y-2 active:scale-90 transition-transform" aria-label="Open image folder">
+            <div class="relative p-5 rounded-2xl bg-neutral-900 text-neutral-500 border border-white/5">
+                <img src="./icons/gallery.png" alt="" class="control-icon" draggable="false">
+                <span id="imageFolderCount" class="hidden absolute -right-2 -top-2 min-w-5 rounded-full bg-white px-1.5 py-0.5 text-center text-[10px] font-black leading-none text-black">0</span>
             </div>
-            <span class="text-[9px] uppercase tracking-widest font-bold text-neutral-600">Clear</span>
+            <span class="text-[9px] uppercase tracking-widest font-bold text-neutral-600">Folder</span>
         </button>
 
         <div class="relative">
@@ -216,7 +351,7 @@
             <div class="p-5 rounded-2xl bg-neutral-900 text-neutral-500 border border-white/5">
                 <img src="./icons/download.png" alt="" class="control-icon" draggable="false">
             </div>
-            <span class="text-[9px] uppercase tracking-widest font-bold text-neutral-600">Save JPG</span>
+            <span class="text-[9px] uppercase tracking-widest font-bold text-neutral-600">Download</span>
         </button>
     </div>
 
@@ -224,6 +359,8 @@
     <video id="sourceVideo" autoplay playsinline muted></video>
     <canvas id="bufferCanvas" style="display:none;"></canvas>
     <canvas id="blendCanvas" style="display:none;"></canvas>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <div class="absolute bottom-4 text-[9px] text-neutral-700 uppercase tracking-[0.4em] w-full text-center pointer-events-none font-bold">
         Luminous Sculpture Interface v1.4
@@ -251,7 +388,13 @@
         const initBtn = document.getElementById('initBtn');
         const startOverlay = document.getElementById('startOverlay');
         const triggerBtn = document.getElementById('triggerBtn');
-        const resetBtn = document.getElementById('resetBtn');
+        const imageFolderBtn = document.getElementById('imageFolderBtn');
+        const imageFolderCount = document.getElementById('imageFolderCount');
+        const imageFolderPanel = document.getElementById('imageFolderPanel');
+        const imageFolderBackdrop = document.getElementById('imageFolderBackdrop');
+        const closeImageFolderBtn = document.getElementById('closeImageFolderBtn');
+        const imageFolderGrid = document.getElementById('imageFolderGrid');
+        const imageFolderEmpty = document.getElementById('imageFolderEmpty');
         const settingsBtn = document.getElementById('settingsBtn');
         const settingsPanel = document.getElementById('settingsPanel');
         const settingsBackdrop = document.getElementById('settingsBackdrop');
@@ -272,6 +415,7 @@
         const iconPlay = document.getElementById('iconPlay');
         const iconStop = document.getElementById('iconStop');
         const pingRing = document.getElementById('pingRing');
+        const toast = document.getElementById('toast');
 
         const cameraProfiles = [
             {
@@ -299,7 +443,14 @@
         let animationFrameId = 0;
         let isStarting = false;
         let reviewImageUrl = null;
+        let currentCapture = null;
+        let imageFolderDbPromise = null;
+        let imageFolder = [];
+        let toastTimeoutId = 0;
         const supportsCaptureSharing = typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && typeof File === 'function';
+        const IMAGE_FOLDER_DB_NAME = 'time-volume-camera-image-folder';
+        const IMAGE_FOLDER_DB_VERSION = 1;
+        const IMAGE_FOLDER_STORE_NAME = 'captures';
         const STACK_BLEND_MODES = {
             lighten: {
                 label: 'Brightest',
@@ -333,6 +484,264 @@
             button.disabled = disabled;
             button.classList.toggle('opacity-40', disabled);
             button.classList.toggle('pointer-events-none', disabled);
+        }
+
+        function showToast(message) {
+            window.clearTimeout(toastTimeoutId);
+            toast.textContent = message;
+            toast.classList.add('is-visible');
+            toastTimeoutId = window.setTimeout(() => {
+                toast.classList.remove('is-visible');
+            }, 2200);
+        }
+
+        function createCaptureRecord(blob) {
+            const createdAt = Date.now();
+            const idSuffix = Math.random().toString(36).slice(2, 8);
+
+            return {
+                id: `capture-${createdAt}-${idSuffix}`,
+                createdAt,
+                fileName: `time-volume-${createdAt}.jpg`,
+                blob
+            };
+        }
+
+        function createImageFolderEntry(record) {
+            return {
+                id: record.id,
+                createdAt: record.createdAt,
+                fileName: record.fileName,
+                blob: record.blob,
+                objectUrl: URL.createObjectURL(record.blob)
+            };
+        }
+
+        function createStorageRecord(record) {
+            return {
+                id: record.id,
+                createdAt: record.createdAt,
+                fileName: record.fileName,
+                blob: record.blob
+            };
+        }
+
+        function revokeImageFolderEntry(entry) {
+            if (entry && entry.objectUrl) {
+                URL.revokeObjectURL(entry.objectUrl);
+            }
+        }
+
+        function openImageFolderDb() {
+            if (!('indexedDB' in window)) {
+                return Promise.reject(new Error('This browser does not support in-app image storage.'));
+            }
+
+            if (imageFolderDbPromise) {
+                return imageFolderDbPromise;
+            }
+
+            imageFolderDbPromise = new Promise((resolve, reject) => {
+                const request = indexedDB.open(IMAGE_FOLDER_DB_NAME, IMAGE_FOLDER_DB_VERSION);
+
+                request.onupgradeneeded = () => {
+                    const db = request.result;
+                    if (!db.objectStoreNames.contains(IMAGE_FOLDER_STORE_NAME)) {
+                        const store = db.createObjectStore(IMAGE_FOLDER_STORE_NAME, { keyPath: 'id' });
+                        store.createIndex('createdAt', 'createdAt', { unique: false });
+                    }
+                };
+
+                request.onerror = () => {
+                    reject(request.error || new Error('Could not open the image folder.'));
+                    imageFolderDbPromise = null;
+                };
+
+                request.onsuccess = () => {
+                    resolve(request.result);
+                };
+            });
+
+            return imageFolderDbPromise;
+        }
+
+        async function readStoredImageFolder() {
+            const db = await openImageFolderDb();
+
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(IMAGE_FOLDER_STORE_NAME, 'readonly');
+                const store = transaction.objectStore(IMAGE_FOLDER_STORE_NAME);
+                const request = store.getAll();
+
+                request.onsuccess = () => {
+                    resolve(request.result || []);
+                };
+
+                request.onerror = () => {
+                    reject(request.error || new Error('Could not read the image folder.'));
+                };
+
+                transaction.onerror = () => {
+                    reject(transaction.error || new Error('Could not read the image folder.'));
+                };
+            });
+        }
+
+        async function persistImageFolderRecord(record) {
+            const db = await openImageFolderDb();
+
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(IMAGE_FOLDER_STORE_NAME, 'readwrite');
+                const store = transaction.objectStore(IMAGE_FOLDER_STORE_NAME);
+                const request = store.put(createStorageRecord(record));
+
+                request.onerror = () => {
+                    reject(request.error || new Error('Could not add this capture to the image folder.'));
+                };
+
+                transaction.oncomplete = () => {
+                    resolve();
+                };
+
+                transaction.onerror = () => {
+                    reject(transaction.error || new Error('Could not add this capture to the image folder.'));
+                };
+            });
+        }
+
+        async function deleteStoredImageFolderRecord(id) {
+            const db = await openImageFolderDb();
+
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(IMAGE_FOLDER_STORE_NAME, 'readwrite');
+                const store = transaction.objectStore(IMAGE_FOLDER_STORE_NAME);
+                const request = store.delete(id);
+
+                request.onerror = () => {
+                    reject(request.error || new Error('Could not remove this capture from the image folder.'));
+                };
+
+                transaction.oncomplete = () => {
+                    resolve();
+                };
+
+                transaction.onerror = () => {
+                    reject(transaction.error || new Error('Could not remove this capture from the image folder.'));
+                };
+            });
+        }
+
+        function formatCaptureTime(createdAt) {
+            return new Intl.DateTimeFormat(undefined, {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).format(new Date(createdAt));
+        }
+
+        function createFolderActionButton(action, label, iconPath, extraClass = '') {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `image-folder-action${extraClass ? ` ${extraClass}` : ''}`;
+            button.dataset.folderAction = action;
+            button.setAttribute('aria-label', label);
+
+            const icon = document.createElement('img');
+            icon.src = iconPath;
+            icon.alt = '';
+            icon.draggable = false;
+            button.appendChild(icon);
+            return button;
+        }
+
+        function renderImageFolder() {
+            imageFolderGrid.replaceChildren();
+            imageFolderEmpty.classList.toggle('hidden', imageFolder.length > 0);
+            imageFolderCount.textContent = imageFolder.length > 99 ? '99+' : String(imageFolder.length);
+            imageFolderCount.classList.toggle('hidden', imageFolder.length === 0);
+
+            imageFolder.forEach((capture) => {
+                const card = document.createElement('article');
+                card.className = 'image-folder-card';
+                card.dataset.captureId = capture.id;
+
+                const previewButton = document.createElement('button');
+                previewButton.type = 'button';
+                previewButton.className = 'image-folder-preview';
+                previewButton.dataset.folderAction = 'review';
+                previewButton.setAttribute('aria-label', 'Review capture');
+
+                const image = document.createElement('img');
+                image.src = capture.objectUrl;
+                image.alt = 'Saved capture';
+                image.loading = 'lazy';
+                image.draggable = false;
+                previewButton.appendChild(image);
+
+                const meta = document.createElement('div');
+                meta.className = 'image-folder-meta';
+
+                const time = document.createElement('span');
+                time.className = 'image-folder-time';
+                time.textContent = formatCaptureTime(capture.createdAt);
+
+                const actions = document.createElement('div');
+                actions.className = 'image-folder-actions';
+                actions.appendChild(createFolderActionButton('save', 'Save capture', './icons/download.png'));
+                actions.appendChild(createFolderActionButton('delete', 'Remove capture', './icons/delete.png', 'danger'));
+
+                meta.appendChild(time);
+                meta.appendChild(actions);
+                card.appendChild(previewButton);
+                card.appendChild(meta);
+                imageFolderGrid.appendChild(card);
+            });
+        }
+
+        async function loadImageFolder() {
+            try {
+                const records = await readStoredImageFolder();
+                const existingEntries = new Map(imageFolder.map((entry) => [entry.id, entry]));
+                const storedIds = new Set(records.map((record) => record.id));
+                const storedEntries = records.map((record) => existingEntries.get(record.id) || createImageFolderEntry(record));
+                const sessionEntries = imageFolder.filter((entry) => !storedIds.has(entry.id));
+                imageFolder = [...storedEntries, ...sessionEntries]
+                    .sort((first, second) => second.createdAt - first.createdAt);
+                renderImageFolder();
+            } catch (error) {
+                console.warn('Image Folder Load Error:', error);
+                renderImageFolder();
+            }
+        }
+
+        function addCaptureToImageFolder(record) {
+            const entry = createImageFolderEntry(record);
+            imageFolder.unshift(entry);
+            renderImageFolder();
+
+            persistImageFolderRecord(record).catch((error) => {
+                console.warn('Image Folder Save Error:', error);
+                showToast('Stored for this session only');
+            });
+
+            return entry;
+        }
+
+        function findImageFolderCapture(id) {
+            return imageFolder.find((capture) => capture.id === id) || null;
+        }
+
+        function openImageFolder() {
+            if (captureState === STATES.CAPTURING) {
+                return;
+            }
+
+            imageFolderPanel.classList.remove('hidden');
+        }
+
+        function closeImageFolder() {
+            imageFolderPanel.classList.add('hidden');
         }
 
         function syncStackSettingsUi() {
@@ -502,7 +911,7 @@
             const hasCapture = captureState === STATES.REVIEW;
 
             setButtonDisabled(triggerBtn, !isReady || isStarting);
-            setButtonDisabled(resetBtn, !isReady || isStarting || captureState === STATES.PREVIEW);
+            setButtonDisabled(imageFolderBtn, isStarting || isRecording);
             setButtonDisabled(saveBtn, !hasCapture || isStarting);
 
             triggerBtn.classList.toggle('bg-red-600', isRecording);
@@ -565,8 +974,11 @@
             if (captureState === STATES.REVIEW) {
                 stopRenderLoop();
             } else if (mediaStream) {
+                currentCapture = null;
                 clearReviewImage();
                 startRenderLoop();
+            } else {
+                currentCapture = null;
             }
 
             syncUi();
@@ -585,10 +997,26 @@
 
             await navigator.share({
                 files: [file],
-                title: 'Time Volume Capture'
+                title: 'Volumetric Time Capture'
             });
 
             return true;
+        }
+
+        function shouldUseNativeImageSave() {
+            const userAgent = navigator.userAgent || '';
+            return isAppleMobileDevice() || /Android/i.test(userAgent);
+        }
+
+        async function saveCaptureBlob(blob, fileName) {
+            if (shouldUseNativeImageSave()) {
+                const didShare = await shareCapture(blob, fileName);
+                if (didShare) {
+                    return;
+                }
+            }
+
+            downloadBlob(blob, fileName);
         }
 
         function showError(message) {
@@ -766,31 +1194,30 @@
 
             try {
                 const blob = await canvasToBlob(canvas, 'image/jpeg', 0.92);
+                const captureRecord = createCaptureRecord(blob);
+                currentCapture = addCaptureToImageFolder(captureRecord);
                 showReviewImage(blob);
+                showToast('Added to Folder');
             } catch (error) {
                 console.error('Review Image Error:', error);
             }
         }
 
-        function resetCapture() {
-            if (!mediaStream) {
-                return;
-            }
-
-            clearReviewImage();
-            clearCompositeCanvas();
-            setState(STATES.PREVIEW);
-            drawFrame();
-        }
-
         function closeReviewCapture() {
-            if (!mediaStream || captureState !== STATES.REVIEW) {
+            if (captureState !== STATES.REVIEW) {
                 return;
             }
 
             clearReviewImage();
-            setState(STATES.PREVIEW);
-            drawFrame();
+            currentCapture = null;
+
+            if (mediaStream) {
+                setState(STATES.PREVIEW);
+                drawFrame();
+            } else {
+                startOverlay.classList.remove('hidden');
+                setState(STATES.IDLE);
+            }
         }
 
         function canvasToBlob(targetCanvas, type, quality) {
@@ -819,6 +1246,98 @@
             window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
         }
 
+        function reviewImageFolderCapture(capture) {
+            if (!capture || captureState === STATES.CAPTURING) {
+                return;
+            }
+
+            closeImageFolder();
+            startOverlay.classList.add('hidden');
+            errorView.classList.add('hidden');
+            currentCapture = capture;
+            setState(STATES.REVIEW);
+            currentCapture = capture;
+            showReviewImage(capture.blob);
+            syncUi();
+        }
+
+        async function saveImageFolderCapture(capture) {
+            if (!capture) {
+                return;
+            }
+
+            try {
+                await saveCaptureBlob(capture.blob, capture.fileName);
+                showToast('Saved JPG');
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error('Save Error:', error);
+                    showToast('Could not save JPG');
+                }
+            }
+        }
+
+        async function deleteImageFolderCapture(id) {
+            const index = imageFolder.findIndex((capture) => capture.id === id);
+            if (index === -1) {
+                return;
+            }
+
+            const [removedCapture] = imageFolder.splice(index, 1);
+            revokeImageFolderEntry(removedCapture);
+            renderImageFolder();
+
+            if (currentCapture && currentCapture.id === id && captureState === STATES.REVIEW) {
+                clearReviewImage();
+                currentCapture = null;
+
+                if (mediaStream) {
+                    setState(STATES.PREVIEW);
+                    drawFrame();
+                } else {
+                    startOverlay.classList.remove('hidden');
+                    setState(STATES.IDLE);
+                }
+            }
+
+            try {
+                await deleteStoredImageFolderRecord(id);
+                showToast('Removed from Folder');
+            } catch (error) {
+                console.warn('Image Folder Delete Error:', error);
+                showToast('Could not update Folder');
+            }
+        }
+
+        function handleImageFolderClick(event) {
+            if (!(event.target instanceof Element)) {
+                return;
+            }
+
+            const actionTarget = event.target.closest('[data-folder-action]');
+            if (!actionTarget) {
+                return;
+            }
+
+            const card = actionTarget.closest('[data-capture-id]');
+            if (!card) {
+                return;
+            }
+
+            const capture = findImageFolderCapture(card.dataset.captureId);
+            if (!capture) {
+                return;
+            }
+
+            if (actionTarget.dataset.folderAction === 'review') {
+                reviewImageFolderCapture(capture);
+            } else if (actionTarget.dataset.folderAction === 'save') {
+                saveImageFolderCapture(capture);
+            } else if (actionTarget.dataset.folderAction === 'delete') {
+                deleteImageFolderCapture(capture.id);
+            }
+        }
+
         async function saveCapture() {
             if (captureState !== STATES.REVIEW || saveBtn.disabled) {
                 return;
@@ -827,21 +1346,14 @@
             setButtonDisabled(saveBtn, true);
 
             try {
-                const blob = await canvasToBlob(canvas, 'image/jpeg', 0.92);
-                const fileName = `light-sculpture-${Date.now()}.jpg`;
-
-                if (isAppleMobileDevice()) {
-                    const didShare = await shareCapture(blob, fileName);
-                    if (didShare) {
-                        return;
-                    }
-                }
-
-                downloadBlob(blob, fileName);
+                const blob = currentCapture ? currentCapture.blob : await canvasToBlob(canvas, 'image/jpeg', 0.92);
+                const fileName = currentCapture ? currentCapture.fileName : `time-volume-${Date.now()}.jpg`;
+                await saveCaptureBlob(blob, fileName);
+                showToast('Saved JPG');
             } catch (error) {
                 if (error.name !== 'AbortError') {
                     console.error('Save Error:', error);
-                    showError(error.message || 'Could not save the current capture.');
+                    showToast('Could not save JPG');
                 }
             } finally {
                 syncUi();
@@ -874,6 +1386,7 @@
 
         function teardownCamera() {
             closeSettings();
+            closeImageFolder();
             clearReviewImage();
             stopRenderLoop();
             stopStream();
@@ -906,7 +1419,10 @@
 
         initBtn.addEventListener('click', startSystem);
         triggerBtn.addEventListener('click', handleTriggerClick);
-        resetBtn.addEventListener('click', resetCapture);
+        imageFolderBtn.addEventListener('click', openImageFolder);
+        imageFolderBackdrop.addEventListener('click', closeImageFolder);
+        closeImageFolderBtn.addEventListener('click', closeImageFolder);
+        imageFolderGrid.addEventListener('click', handleImageFolderClick);
         settingsBtn.addEventListener('click', openSettings);
         settingsBackdrop.addEventListener('click', closeSettings);
         closeSettingsBtn.addEventListener('click', closeSettings);
@@ -928,6 +1444,8 @@
         }
 
         syncStackSettingsUi();
+        renderImageFolder();
+        loadImageFolder();
         syncUi();
     </script>
 </body>

@@ -1,17 +1,24 @@
-const CACHE_NAME = 'time-volume-camera-v1';
+const CACHE_NAME = 'volumetric-time-camera-v1.3';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
   './icons/icon_32.png',
   './icons/icon_192.png',
-  './icons/icon_512.png'
+  './icons/icon_512.png',
+  './icons/settings.png',
+  './icons/download.png',
+  './icons/delete.png',
+  './icons/gallery.png',
+  './icons/aperture.png'
 ];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
+    caches.open(CACHE_NAME).then((cache) => Promise.all(
+      APP_SHELL.map((asset) => cache.add(asset).catch(() => null))
+    ))
   );
 });
 
