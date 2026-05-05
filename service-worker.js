@@ -1,4 +1,4 @@
-const CACHE_NAME = 'volumetric-time-camera-v1.7';
+const CACHE_NAME = 'volumetric-time-camera-v1.82';
 const APP_SHELL = [
   './',
   './index.html',

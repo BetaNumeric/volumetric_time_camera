@@ -12,7 +12,7 @@
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon_32.png">
     <link rel="apple-touch-icon" href="./icons/icon_192.png">
-    <title>v1.81 Volumetric Time Camera</title>
+    <title>v1.82 Volumetric Time Camera</title>
     <link rel="stylesheet" href="./styles.css">
     <style>
         body {
@@ -288,10 +288,30 @@
             right: max(1.5rem, calc(env(safe-area-inset-right) + 1rem));
             bottom: auto;
         }
+
+        @media screen and (orientation: landscape) and (max-height: 600px) {
+            #appContainer {
+                flex-direction: row !important;
+            }
+            #appControls {
+                width: auto !important;
+                height: 100% !important;
+                flex-direction: column-reverse !important;
+                border-top: none !important;
+                border-left: 1px solid rgba(255, 255, 255, 0.05);
+                padding: 1.5rem 2rem !important;
+                padding-right: max(2rem, env(safe-area-inset-right)) !important;
+                padding-left: max(2rem, env(safe-area-inset-left)) !important;
+            }
+            #cameraFooter {
+                display: none !important;
+            }
+        }
     </style>
 </head>
-<body class="fixed inset-0 flex flex-col items-center">
+<body class="fixed inset-0 flex items-center justify-center bg-black">
 
+<div id="appContainer" class="relative flex flex-col w-full h-full max-w-full">
     <!-- Viewport Area -->
     <div id="viewport" class="relative flex-1 w-full flex items-center justify-center bg-neutral-950 overflow-hidden">
         
@@ -346,7 +366,7 @@
             <img id="fullscreenToggleIcon" src="./icons/maximize.png" alt="" draggable="false">
         </button>
 
-        <div id="settingsPanel" class="hidden fixed inset-0 z-50">
+        <div id="settingsPanel" class="hidden absolute inset-0 z-50">
             <button id="settingsBackdrop" class="absolute inset-0 bg-black/70" aria-label="Close settings"></button>
             <div class="settings-scroll">
                 <div class="settings-card rounded-3xl border border-white/10 bg-neutral-950/95 backdrop-blur-md shadow-2xl p-6">
@@ -416,7 +436,7 @@
             </div>
         </div>
 
-        <div id="imageFolderPanel" class="hidden fixed inset-0 z-50">
+        <div id="imageFolderPanel" class="hidden absolute inset-0 z-50">
             <button id="imageFolderBackdrop" class="absolute inset-0 bg-black/75" aria-label="Close image folder"></button>
             <section class="absolute inset-x-0 bottom-0 max-h-[78vh] overflow-hidden rounded-t-[2rem] border-t border-white/10 bg-neutral-950/95 backdrop-blur-md shadow-2xl">
                 <div class="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4">
@@ -445,7 +465,7 @@
     </div>
 
     <!-- Controls -->
-    <div id="appControls" class="w-full bg-neutral-950 p-8 flex items-center justify-between border-t border-white/5 pb-14 z-30 max-w-3xl mx-auto">
+    <div id="appControls" class="w-full bg-neutral-950 p-8 flex items-center justify-between border-t border-white/5 pb-14 z-30">
         
         <button id="imageFolderBtn" class="group flex flex-col items-center space-y-2 active:scale-90 transition-transform" aria-label="Open image folder">
             <div class="relative p-5 rounded-2xl bg-neutral-900 text-neutral-500 border border-white/5">
@@ -478,8 +498,58 @@
     <div id="cameraFooter" class="absolute bottom-4 text-[9px] text-neutral-700 uppercase tracking-[0.4em] w-full text-center pointer-events-none font-bold">
         Luminous Sculpture Interface v1.7
     </div>
+</div>
 
     <script>
+        function updateAppLayout() {
+            const app = document.getElementById('appContainer');
+            const controls = document.getElementById('appControls');
+            
+            if (!video || !video.videoWidth || !app || !controls) {
+                if (app) {
+                    app.style.width = '100%';
+                    app.style.height = '100%';
+                }
+                return;
+            }
+
+            if (document.body.classList.contains('camera-fullscreen-active')) {
+                app.style.width = '100%';
+                app.style.height = '100%';
+                return;
+            }
+
+            const winW = window.innerWidth;
+            const winH = window.innerHeight;
+
+            // Leave layout filling the entire screen for portrait dimensions (mobile)
+            // or mobile landscape (height <= 600px)
+            if (winH >= winW || (winH <= 600 && winW > winH)) {
+                app.style.width = '100%';
+                app.style.height = '100%';
+                return;
+            }
+
+            const aspect = video.videoWidth / video.videoHeight;
+            
+            // Get the static height of the controls area
+            const controlsH = controls.offsetHeight || 0;
+            
+            // Calculate optimal viewport size maintaining aspect ratio
+            let targetViewportH = winH - controlsH;
+            let targetW = targetViewportH * aspect;
+            
+            // If width exceeds screen width, scale by width instead
+            if (targetW > winW) {
+                targetW = winW;
+                targetViewportH = targetW / aspect;
+            }
+            
+            // Apply precise constraints to centralize the app and align UI exactly to camera edges
+            app.style.width = Math.floor(targetW) + 'px';
+            app.style.height = Math.floor(targetViewportH + controlsH) + 'px';
+        }
+
         const STATES = {
             IDLE: 'idle',
             PREVIEW: 'preview',
@@ -1353,6 +1423,7 @@
             }
 
             document.body.classList.toggle('camera-fullscreen-active', isCameraFullscreen);
+            updateAppLayout();
 
             const label = isCameraFullscreen ? 'Exit full screen' : 'Enter full screen';
             fullscreenToggleBtn.setAttribute('aria-label', label);
@@ -1455,6 +1526,34 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             resetStackFrameHistory();
             resetRollingStackFrames();
+        }
+
+        function handleVideoResize() {
+            if (!video.videoWidth || !video.videoHeight) {
+                return;
+            }
+
+            if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                const wasCapturing = captureState === STATES.CAPTURING;
+
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                bufferCanvas.width = video.videoWidth;
+                bufferCanvas.height = video.videoHeight;
+                blendCanvas.width = video.videoWidth;
+                blendCanvas.height = video.videoHeight;
+                resizeRollingStackBuffers();
+                
+                updateAppLayout();
+
+                if (captureState === STATES.IDLE || captureState === STATES.PREVIEW || captureState === STATES.CAPTURING) {
+                    clearCompositeCanvas();
+                    if (wasCapturing) {
+                        // Let it gracefully continue starting fresh from this orientation
+                        showToast('Orientation changed', STATES.CAPTURING);
+                    }
+                }
+            }
         }
 
         function startRenderLoop() {
@@ -1756,6 +1855,8 @@
                 blendCanvas.width = video.videoWidth;
                 blendCanvas.height = video.videoHeight;
                 resizeRollingStackBuffers();
+                
+                updateAppLayout();
 
                 clearCompositeCanvas();
                 errorView.classList.add('hidden');
@@ -2197,9 +2298,11 @@
         closePreviewBtn.addEventListener('click', closeReviewCapture);
         fullscreenToggleBtn.addEventListener('click', handleFullscreenToggleClick);
         saveBtn.addEventListener('click', saveCapture);
+        video.addEventListener('resize', handleVideoResize);
         document.addEventListener('visibilitychange', handleVisibilityChange);
         document.addEventListener('fullscreenchange', handleNativeFullscreenChange);
         document.addEventListener('webkitfullscreenchange', handleNativeFullscreenChange);
+        window.addEventListener('resize', updateAppLayout);
         window.addEventListener('pagehide', teardownCamera);
         window.addEventListener('beforeunload', teardownCamera);
 
