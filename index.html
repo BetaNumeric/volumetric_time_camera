@@ -12,7 +12,7 @@
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon_32.png">
     <link rel="apple-touch-icon" href="./icons/icon_192.png">
-    <title>v1.82 Volumetric Time Camera</title>
+    <title>v1.86 Volumetric Time Camera</title>
     <link rel="stylesheet" href="./styles.css">
     <style>
         body {
@@ -307,6 +307,31 @@
                 display: none !important;
             }
         }
+        #imageFolderPanel {
+            transition: visibility 0s 300ms;
+        }
+        #imageFolderPanel.is-open {
+            transition: visibility 0s 0s;
+        }
+        #imageFolderBackdrop {
+            opacity: 0;
+            transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #imageFolderPanel.is-open #imageFolderBackdrop {
+            opacity: 1;
+        }
+        #imageFolderSheet {
+            transform: translateY(100%);
+            transition: transform 1000ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #imageFolderPanel.is-open #imageFolderSheet {
+            transform: translateY(0);
+        }
+        .invisible {
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
+        
     </style>
 </head>
 <body class="fixed inset-0 flex items-center justify-center bg-black">
@@ -365,8 +390,10 @@
         <button id="fullscreenToggleBtn" class="fullscreen-toggle active:scale-95" aria-label="Enter full screen" title="Enter full screen">
             <img id="fullscreenToggleIcon" src="./icons/maximize.png" alt="" draggable="false">
         </button>
+    </div> <!-- Close Viewport -->
 
-        <div id="settingsPanel" class="hidden absolute inset-0 z-50">
+        <!-- Settings Panel -->
+        <div id="settingsPanel" class="hidden absolute inset-0 z-50 pointer-events-auto">
             <button id="settingsBackdrop" class="absolute inset-0 bg-black/70" aria-label="Close settings"></button>
             <div class="settings-scroll">
                 <div class="settings-card rounded-3xl border border-white/10 bg-neutral-950/95 backdrop-blur-md shadow-2xl p-6">
@@ -436,9 +463,10 @@
             </div>
         </div>
 
-        <div id="imageFolderPanel" class="hidden absolute inset-0 z-50">
+        <!-- Image Folder Panel -->
+        <div id="imageFolderPanel" class="invisible absolute inset-0 z-50 pointer-events-auto">
             <button id="imageFolderBackdrop" class="absolute inset-0 bg-black/75" aria-label="Close image folder"></button>
-            <section class="absolute inset-x-0 bottom-0 max-h-[78vh] overflow-hidden rounded-t-[2rem] border-t border-white/10 bg-neutral-950/95 backdrop-blur-md shadow-2xl">
+            <section id="imageFolderSheet" class="absolute inset-x-0 bottom-0 max-h-[78vh] overflow-hidden rounded-t-[2rem] border-t border-white/10 bg-neutral-950/95 backdrop-blur-md shadow-2xl">
                 <div class="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4">
                     <h2 class="text-sm font-black uppercase tracking-[0.2em] text-white">Image Folder</h2>
                     <button id="closeImageFolderBtn" class="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center active:scale-95 transition-transform" aria-label="Close image folder">
@@ -462,7 +490,6 @@
                 </div>
             </section>
         </div>
-    </div>
 
     <!-- Controls -->
     <div id="appControls" class="w-full bg-neutral-950 p-8 flex items-center justify-between border-t border-white/5 pb-14 z-30">
@@ -655,6 +682,7 @@
         let toastTimeoutId = 0;
         let isCameraFullscreen = false;
         let fullscreenControlTimeoutId = 0;
+        let appSwipeStartY = 0;
         const supportsCaptureSharing = typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && typeof File === 'function';
         const IMAGE_FOLDER_DB_NAME = 'time-volume-camera-image-folder';
         const IMAGE_FOLDER_DB_VERSION = 1;
@@ -965,12 +993,81 @@
             }
 
             setFullscreenControlVisible(false);
-            imageFolderPanel.classList.remove('hidden');
+            imageFolderPanel.classList.remove('invisible');
+            // Small delay to ensure browser repaints before transition starts
+            setTimeout(() => {
+                imageFolderPanel.classList.add('is-open');
+            }, 10);
         }
 
         function closeImageFolder() {
-            imageFolderPanel.classList.add('hidden');
+            imageFolderPanel.classList.remove('is-open');
+            setTimeout(() => {
+                if (!imageFolderPanel.classList.contains('is-open')) {
+                    imageFolderPanel.classList.add('invisible');
+                }
+            }, 300); // match transition duration
         }
+
+        // Swipe up from anywhere near the bottom / Folder button specifically
+        document.addEventListener('touchstart', (e) => {
+            appSwipeStartY = e.touches && e.touches[0] ? e.touches[0].clientY : 0;
+        }, { passive: true });
+
+        document.addEventListener('touchend', (e) => {
+            if (!appSwipeStartY) return;
+            const touchEndY = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientY : 0;
+            const deltaY = appSwipeStartY - touchEndY;
+
+            if (deltaY > 50 && captureState !== STATES.CAPTURING && !imageFolderPanel.classList.contains('is-open') && !settingsPanel.classList.contains('is-open')) {
+                openImageFolder();
+            } else if (deltaY < -50 && imageFolderPanel.classList.contains('is-open')) {
+                // Determine if we should close the sheet. Allow internal scrolling logic.
+                const sheet = document.getElementById('imageFolderSheet');
+                if (sheet) {
+                    const scrollArea = sheet.querySelector('.overflow-y-auto');
+                    if (scrollArea && scrollArea.scrollTop === 0) {
+                        closeImageFolder();
+                    }
+                } else {
+                    closeImageFolder();
+                }
+            }
+
+            appSwipeStartY = 0;
+        }, { passive: true });
+
+        // Clear on cancel
+        document.addEventListener('touchcancel', () => { appSwipeStartY = 0; }, { passive: true });
+
+        // Pointer-event fallback for devices/browsers that expose pointer events instead of touch events
+        document.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'touch') appSwipeStartY = e.clientY;
+        }, { passive: true });
+
+        document.addEventListener('pointerup', (e) => {
+            if (e.pointerType !== 'touch' || !appSwipeStartY) return;
+            const touchEndY = e.clientY;
+            const deltaY = appSwipeStartY - touchEndY;
+
+            if (deltaY > 50 && captureState !== STATES.CAPTURING && !imageFolderPanel.classList.contains('is-open') && !settingsPanel.classList.contains('is-open')) {
+                openImageFolder();
+            } else if (deltaY < -50 && imageFolderPanel.classList.contains('is-open')) {
+                const sheet = document.getElementById('imageFolderSheet');
+                if (sheet) {
+                    const scrollArea = sheet.querySelector('.overflow-y-auto');
+                    if (scrollArea && scrollArea.scrollTop === 0) {
+                        closeImageFolder();
+                    }
+                } else {
+                    closeImageFolder();
+                }
+            }
+
+            appSwipeStartY = 0;
+        }, { passive: true });
+
+        document.addEventListener('pointercancel', () => { appSwipeStartY = 0; }, { passive: true });
 
         function syncStackSettingsUi() {
             const mode = STACK_BLEND_MODES[stackBlendModeKey] || STACK_BLEND_MODES.lighten;
@@ -1400,7 +1497,7 @@
                 && startOverlay.classList.contains('hidden')
                 && errorView.classList.contains('hidden')
                 && settingsPanel.classList.contains('hidden')
-                && imageFolderPanel.classList.contains('hidden');
+                && (imageFolderPanel.classList.contains('hidden') || imageFolderPanel.classList.contains('invisible'));
         }
 
         function setFullscreenControlVisible(isVisible) {
