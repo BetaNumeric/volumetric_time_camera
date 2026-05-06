@@ -1,4 +1,5 @@
-const CACHE_NAME = 'volumetric-time-camera-v1.87';
+const CACHE_NAME = 'volumetric-time-camera-v1.88';
+const JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
 const APP_SHELL = [
   './',
   './index.html',
@@ -13,7 +14,8 @@ const APP_SHELL = [
   './icons/gallery.png',
   './icons/maximize.png',
   './icons/minimize.png',
-  './icons/aperture.png'
+  './icons/aperture.png',
+  JSQR_URL
 ];
 const APP_SHELL_URLS = new Set(
   APP_SHELL.map((asset) => new URL(asset, self.location.href).href)
@@ -47,7 +49,9 @@ self.addEventListener('fetch', (event) => {
 
   const requestUrl = new URL(request.url);
 
-  if (requestUrl.origin !== self.location.origin) {
+  const isAppShellRequest = APP_SHELL_URLS.has(requestUrl.href);
+
+  if (requestUrl.origin !== self.location.origin && !isAppShellRequest) {
     return;
   }
 
@@ -69,7 +73,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (!APP_SHELL_URLS.has(requestUrl.href)) {
+  if (!isAppShellRequest) {
     return;
   }
 

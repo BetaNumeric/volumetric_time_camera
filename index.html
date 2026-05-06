@@ -12,7 +12,7 @@
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon_32.png">
     <link rel="apple-touch-icon" href="./icons/icon_192.png">
-    <title>v1.87 Volumetric Time Camera</title>
+    <title>v1.88 Volumetric Time Camera</title>
     <link rel="stylesheet" href="./styles.css">
     <style>
         body {
@@ -559,6 +559,7 @@
     </div>
 </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <script>
         function updateAppLayout() {
             const app = document.getElementById('appContainer');
@@ -631,6 +632,8 @@
         const rollingSampleCtx = rollingSampleCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
         const rollingCompositeCanvas = document.createElement('canvas');
         const rollingCompositeCtx = rollingCompositeCanvas.getContext('2d', { alpha: false });
+        const qrScanCanvas = document.createElement('canvas');
+        const qrScanCtx = qrScanCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
 
         const initBtn = document.getElementById('initBtn');
         const startOverlay = document.getElementById('startOverlay');
@@ -1069,6 +1072,51 @@
             return qrSyncDetector;
         }
 
+        function scanQrSyncWithJsQr() {
+            if (typeof window.jsQR !== 'function' || !video.videoWidth || !video.videoHeight) {
+                return null;
+            }
+
+            const maxScanEdge = 720;
+            const scale = Math.min(1, maxScanEdge / Math.max(video.videoWidth, video.videoHeight));
+            const width = Math.max(1, Math.round(video.videoWidth * scale));
+            const height = Math.max(1, Math.round(video.videoHeight * scale));
+
+            if (qrScanCanvas.width !== width || qrScanCanvas.height !== height) {
+                qrScanCanvas.width = width;
+                qrScanCanvas.height = height;
+            }
+
+            qrScanCtx.drawImage(video, 0, 0, width, height);
+            const imageData = qrScanCtx.getImageData(0, 0, width, height);
+            const code = window.jsQR(imageData.data, width, height, { inversionAttempts: 'attemptBoth' });
+            return code && code.data ? code.data : null;
+        }
+
+        async function detectQrSyncValues() {
+            let detectorError = null;
+
+            if (typeof window.BarcodeDetector === 'function') {
+                try {
+                    const detector = await ensureQrSyncDetector();
+                    const codes = await detector.detect(video);
+                    return codes.map((code) => code.rawValue || '').filter(Boolean);
+                } catch (error) {
+                    detectorError = error;
+                }
+            }
+
+            const jsQrValue = scanQrSyncWithJsQr();
+            if (jsQrValue) {
+                return [jsQrValue];
+            }
+            if (typeof window.jsQR === 'function') {
+                return [];
+            }
+
+            throw detectorError || new Error('QR decoder unavailable. Reconnect and reload.');
+        }
+
         async function scanQrSyncFrame() {
             if (!qrSyncEnabled || qrSyncDetecting || !mediaStream || captureState !== STATES.PREVIEW || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
                 return;
@@ -1076,10 +1124,8 @@
 
             qrSyncDetecting = true;
             try {
-                const detector = await ensureQrSyncDetector();
-                const codes = await detector.detect(video);
-                for (const code of codes) {
-                    const rawValue = code.rawValue || '';
+                const rawValues = await detectQrSyncValues();
+                for (const rawValue of rawValues) {
                     const payload = parseQrSyncPayloadFromValue(rawValue);
                     if (payload) {
                         applyQrSyncPayload(payload, rawValue, 'camera');
