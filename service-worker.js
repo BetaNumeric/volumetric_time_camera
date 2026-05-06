@@ -1,4 +1,4 @@
-const CACHE_NAME = 'volumetric-time-camera-v1.88';
+const CACHE_NAME = 'volumetric-time-camera-v1.89';
 const JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
 const APP_SHELL = [
   './',

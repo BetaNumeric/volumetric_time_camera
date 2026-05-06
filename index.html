@@ -12,7 +12,7 @@
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon_32.png">
     <link rel="apple-touch-icon" href="./icons/icon_192.png">
-    <title>v1.88 Volumetric Time Camera</title>
+    <title>v1.89 Volumetric Time Camera</title>
     <link rel="stylesheet" href="./styles.css">
     <style>
         body {
@@ -230,10 +230,12 @@
         }
         .sync-hud {
             position: absolute;
-            top: 1.5rem;
-            right: 1.5rem;
+            top: max(1.25rem, calc(env(safe-area-inset-top) + 0.75rem));
+            left: 50%;
             z-index: 20;
-            max-width: min(18rem, calc(100vw - 8rem));
+            width: max-content;
+            max-width: min(24rem, calc(100vw - 8rem));
+            transform: translateX(-50%);
             border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 9999px;
             background: rgba(0, 0, 0, 0.78);
@@ -243,6 +245,7 @@
             font-weight: 900;
             letter-spacing: 0.12em;
             text-transform: uppercase;
+            text-align: center;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -482,14 +485,22 @@
                             <input id="rollingStackWindowSlider" type="range" min="5" max="60" step="1" value="25" class="mt-3 w-full accent-white">
                         </label>
 
-                        <label class="block rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                        <div class="block rounded-2xl border border-white/5 bg-white/[0.03] p-4">
                             <div class="flex items-center justify-between gap-4">
                                 <span class="text-[11px] font-black uppercase tracking-[0.18em] text-white">QR Sync</span>
                                 <span id="qrSyncEnabledValue" class="text-[11px] uppercase tracking-[0.18em] text-neutral-400">Off</span>
                             </div>
-                            <input id="qrSyncEnabledInput" type="checkbox" class="mt-3 accent-white" style="width: 1.25rem; height: 1.25rem;">
+                            <input id="qrSyncEnabledInput" type="checkbox" class="mt-3 accent-white" style="width: 1.25rem; height: 1.25rem;" aria-label="Enable QR Sync">
+                            <div class="mt-3 flex items-center justify-between gap-4">
+                                <span class="text-[11px] font-black uppercase tracking-[0.18em] text-white">QR Action</span>
+                                <span id="qrSyncActionValue" class="text-[11px] uppercase tracking-[0.18em] text-neutral-400">Auto record</span>
+                            </div>
+                            <select id="qrSyncActionSelect" class="mt-3 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none" aria-label="QR Sync action">
+                                <option value="record">Auto record</option>
+                                <option value="info">Info only</option>
+                            </select>
                             <p id="qrSyncStatus" class="mt-3 text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Scanner off</p>
-                        </label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -672,6 +683,8 @@
         const rollingStackWindowValue = document.getElementById('rollingStackWindowValue');
         const qrSyncEnabledInput = document.getElementById('qrSyncEnabledInput');
         const qrSyncEnabledValue = document.getElementById('qrSyncEnabledValue');
+        const qrSyncActionSelect = document.getElementById('qrSyncActionSelect');
+        const qrSyncActionValue = document.getElementById('qrSyncActionValue');
         const qrSyncStatus = document.getElementById('qrSyncStatus');
         const cameraLensField = document.getElementById('cameraLensField');
         const cameraLensSelect = document.getElementById('cameraLensSelect');
@@ -751,8 +764,13 @@
         const ROLLING_STACK_TARGET_SAMPLES = 120;
         const ROLLING_STACK_MIN_SAMPLE_INTERVAL_MS = 125;
         const QR_SYNC_STORAGE_KEY = 'time-volume-camera-qr-sync-enabled';
+        const QR_SYNC_ACTION_STORAGE_KEY = 'time-volume-camera-qr-sync-action';
         const QR_SYNC_PARAM = 'tvs';
         const QR_SYNC_SCAN_INTERVAL_MS = 350;
+        const QR_SYNC_ACTIONS = {
+            record: 'Auto record',
+            info: 'Info only'
+        };
         let stackBlendModeKey = 'lighten';
         let stackBlendMode = STACK_BLEND_MODES.lighten.composite;
         let stackFrameOpacity = STACK_BLEND_MODES.lighten.opacity;
@@ -768,6 +786,7 @@
         let rollingStackNeedsComposite = true;
         let rollingStackMeanAccumulator = null;
         let qrSyncEnabled = readStoredBoolean(QR_SYNC_STORAGE_KEY, false);
+        let qrSyncAction = readStoredString(QR_SYNC_ACTION_STORAGE_KEY, 'record', Object.keys(QR_SYNC_ACTIONS));
         let qrSyncDetector = null;
         let qrSyncScanTimerId = 0;
         let qrSyncDetecting = false;
@@ -805,6 +824,22 @@
         function writeStoredBoolean(key, value) {
             try {
                 window.localStorage.setItem(key, value ? '1' : '0');
+            } catch (error) {}
+        }
+
+        function readStoredString(key, fallback, allowedValues) {
+            try {
+                const value = window.localStorage.getItem(key);
+                if (!allowedValues || allowedValues.includes(value)) {
+                    return value || fallback;
+                }
+            } catch (error) {}
+            return fallback;
+        }
+
+        function writeStoredString(key, value) {
+            try {
+                window.localStorage.setItem(key, value);
             } catch (error) {}
         }
 
@@ -858,8 +893,10 @@
             }
 
             const now = Date.now();
-            const startInMs = Number.isFinite(Number(payload.si)) ? Math.max(0, Number(payload.si)) : null;
-            const durationMs = Number.isFinite(Number(payload.du)) ? Math.max(0, Number(payload.du)) : null;
+            const hasStartIn = payload.si !== null && payload.si !== undefined && Number.isFinite(Number(payload.si));
+            const hasDuration = payload.du !== null && payload.du !== undefined && Number.isFinite(Number(payload.du));
+            const startInMs = hasStartIn ? Math.max(0, Number(payload.si)) : null;
+            const durationMs = hasDuration ? Math.max(0, Number(payload.du)) : null;
             const startAt = startInMs == null ? null : now + startInMs;
             const stopAt = startAt != null && durationMs ? startAt + durationMs : null;
             const direction = Number(payload.d || 0);
@@ -893,20 +930,32 @@
             }
         }
 
+        function planCanAutoRecord(plan) {
+            return qrSyncAction === 'record'
+                && plan
+                && plan.phase !== 'idle'
+                && plan.startAt != null
+                && plan.stopAt != null
+                && plan.durationMs > 0;
+        }
+
         function qrSyncHudText(plan, now = Date.now()) {
             if (!plan) {
                 return '';
             }
+            const prefix = qrSyncAction === 'record' ? 'QR' : 'QR info';
             if (plan.startAt == null || plan.stopAt == null) {
-                return `QR ${plan.sequenceName}`;
+                return `${prefix} ${plan.sequenceName}`;
             }
             if (now < plan.startAt) {
-                return `QR ${formatQrSyncSeconds(plan.startAt - now)} ${plan.sequenceName}`;
+                return `${prefix} ${formatQrSyncSeconds(plan.startAt - now)} ${plan.sequenceName}`;
             }
             if (now < plan.stopAt) {
-                return `QR recording ${formatQrSyncSeconds(plan.stopAt - now)}`;
+                return qrSyncAction === 'record'
+                    ? `${prefix} recording ${formatQrSyncSeconds(plan.stopAt - now)}`
+                    : `${prefix} ${plan.sequenceName}`;
             }
-            return `QR ${plan.sequenceName}`;
+            return `${prefix} ${plan.sequenceName}`;
         }
 
         function updateQrSyncPlanUi() {
@@ -922,7 +971,13 @@
                 qrSyncHud.textContent = hudText;
                 qrSyncHud.classList.toggle('hidden', !hudText);
 
-                if (qrSyncPlan.startAt == null || qrSyncPlan.stopAt == null) {
+                if (qrSyncAction === 'info') {
+                    if (qrSyncPlan.startAt != null && qrSyncPlan.stopAt != null && now < qrSyncPlan.startAt) {
+                        setQrSyncStatus(`Info only: starts in ${formatQrSyncSeconds(qrSyncPlan.startAt - now)} - ${qrSyncPlan.sequenceName}`);
+                    } else {
+                        setQrSyncStatus(`Info only: ${qrSyncPlan.sequenceName}`);
+                    }
+                } else if (qrSyncPlan.startAt == null || qrSyncPlan.stopAt == null || qrSyncPlan.phase === 'idle') {
                     setQrSyncStatus(`Synced ${qrSyncPlan.sequenceName}`);
                 } else if (now < qrSyncPlan.startAt) {
                     setQrSyncStatus(`Starts in ${formatQrSyncSeconds(qrSyncPlan.startAt - now)} - ${qrSyncPlan.sequenceName}`);
@@ -941,6 +996,8 @@
         function syncQrSyncSettingsUi() {
             qrSyncEnabledInput.checked = qrSyncEnabled;
             qrSyncEnabledValue.textContent = qrSyncEnabled ? 'On' : 'Off';
+            qrSyncActionSelect.value = qrSyncAction;
+            qrSyncActionValue.textContent = QR_SYNC_ACTIONS[qrSyncAction] || QR_SYNC_ACTIONS.record;
             updateQrSyncPlanUi();
         }
 
@@ -953,6 +1010,10 @@
 
         function startQrSyncedCapture(planId) {
             if (!qrSyncPlan || qrSyncPlan.id !== planId || !qrSyncEnabled) {
+                return;
+            }
+            if (!planCanAutoRecord(qrSyncPlan)) {
+                updateQrSyncPlanUi();
                 return;
             }
             if (!mediaStream || captureState === STATES.REVIEW) {
@@ -987,7 +1048,7 @@
             qrSyncPlan = plan;
             startQrSyncUiTicker();
 
-            if (!plan.startAt || !plan.stopAt || !plan.durationMs) {
+            if (!planCanAutoRecord(plan)) {
                 updateQrSyncPlanUi();
                 return;
             }
@@ -1014,7 +1075,7 @@
         }
 
         function resumeQrSyncPlanWindow() {
-            if (!qrSyncEnabled || !qrSyncPlan || !qrSyncPlan.startAt || !qrSyncPlan.stopAt || captureState !== STATES.PREVIEW || !mediaStream) {
+            if (!qrSyncEnabled || !planCanAutoRecord(qrSyncPlan) || captureState !== STATES.PREVIEW || !mediaStream) {
                 return;
             }
             const now = Date.now();
@@ -1170,6 +1231,24 @@
             }
             syncQrSyncSettingsUi();
             scheduleQrSyncScan();
+        }
+
+        function setQrSyncAction(nextAction) {
+            const autoStartedPlanId = qrSyncPlan && qrSyncPlan.autoStarted ? qrSyncPlan.id : null;
+            qrSyncAction = QR_SYNC_ACTIONS[nextAction] ? nextAction : 'record';
+            writeStoredString(QR_SYNC_ACTION_STORAGE_KEY, qrSyncAction);
+
+            if (qrSyncAction !== 'record' && autoStartedPlanId) {
+                stopQrSyncedCapture(autoStartedPlanId).catch(() => {});
+            }
+
+            if (qrSyncPlan) {
+                scheduleQrSyncPlan(qrSyncPlan);
+            } else {
+                clearQrSyncTimers();
+            }
+
+            syncQrSyncSettingsUi();
         }
 
         function applyQrSyncFromLocation() {
@@ -2844,6 +2923,7 @@
         rollingStackEnabledInput.addEventListener('change', handleRollingStackEnabledChange);
         rollingStackWindowSlider.addEventListener('input', handleRollingStackWindowInput);
         qrSyncEnabledInput.addEventListener('change', () => setQrSyncEnabled(qrSyncEnabledInput.checked));
+        qrSyncActionSelect.addEventListener('change', () => setQrSyncAction(qrSyncActionSelect.value));
         cameraLensSelect.addEventListener('change', handleCameraLensChange);
         closePreviewBtn.addEventListener('click', closeReviewCapture);
         fullscreenToggleBtn.addEventListener('click', handleFullscreenToggleClick);
