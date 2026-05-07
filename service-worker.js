@@ -1,7 +1,10 @@
-const CACHE_NAME = 'volumetric-time-camera-v1.92';
+importScripts('./version.js');
+
+const CACHE_NAME = `volumetric-time-camera-v${self.CAMERA_APP_VERSION || 'dev'}`;
 const JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
 const APP_SHELL = [
   './',
+  './version.js',
   './index.html',
   './styles.css',
   './manifest.json',

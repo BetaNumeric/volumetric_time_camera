@@ -12,7 +12,7 @@
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon_32.png">
     <link rel="apple-touch-icon" href="./icons/icon_192.png">
-    <title>v1.92 Volumetric Time Camera</title>
+    <title>Volumetric Time Camera</title>
     <link rel="stylesheet" href="./styles.css">
     <style>
         body {
@@ -514,6 +514,13 @@
                             </select>
                             <p id="qrSyncStatus" class="mt-3 text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Scanner off</p>
                         </div>
+
+                        <div class="block rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                            <div class="flex items-center justify-between gap-4">
+                                <span class="text-[11px] font-black uppercase tracking-[0.18em] text-white">Camera App</span>
+                                <span id="appVersionValue" class="text-[11px] uppercase tracking-[0.18em] text-neutral-400">v-</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -583,8 +590,12 @@
     </div>
 </div>
 
+    <script src="./version.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <script>
+        const APP_VERSION = window.CAMERA_APP_VERSION || 'dev';
+        document.title = `v${APP_VERSION} Volumetric Time Camera`;
+
         function updateAppLayout() {
             const app = document.getElementById('appContainer');
             const controls = document.getElementById('appControls');
@@ -711,6 +722,11 @@
         const pingRing = document.getElementById('pingRing');
         const toast = document.getElementById('toast');
         const qrSyncHud = document.getElementById('qrSyncHud');
+        const appVersionValue = document.getElementById('appVersionValue');
+        const cameraFooter = document.getElementById('cameraFooter');
+
+        appVersionValue.textContent = `v${APP_VERSION}`;
+        cameraFooter.textContent = `Luminous Sculpture Interface v${APP_VERSION}`;
 
         const cameraProfiles = [
             {
@@ -915,6 +931,36 @@
             const stopAt = startAt != null && durationMs ? startAt + durationMs : null;
             const direction = Number(payload.d || 0);
             const sequenceName = payload.n || payload.id || 'Sequence';
+            const upcoming = Array.isArray(payload.u)
+                ? payload.u.map((entry, index) => {
+                    if (!Array.isArray(entry) || entry.length < 4) {
+                        return null;
+                    }
+                    const entryStartInMs = Number(entry[0]);
+                    const entryDurationMs = Number(entry[1]);
+                    if (!Number.isFinite(entryStartInMs) || !Number.isFinite(entryDurationMs) || entryDurationMs <= 0) {
+                        return null;
+                    }
+                    const entryStartAt = now + Math.max(0, entryStartInMs);
+                    const entryStopAt = entryStartAt + Math.max(0, entryDurationMs);
+                    const entryDirection = Number(entry[2] || 0);
+                    const entryName = String(entry[3] || `Sequence ${index + 2}`);
+                    return {
+                        id: `${payload.id || 'sequence'}|u${index}|${entryStartInMs}|${entryDurationMs}|${entryDirection}|${entryName}`,
+                        rawValue,
+                        source: 'forecast',
+                        payload: {},
+                        receivedAt: now,
+                        startAt: entryStartAt,
+                        stopAt: entryStopAt,
+                        durationMs: Math.max(0, entryDurationMs),
+                        sequenceName: entryName,
+                        direction: entryDirection,
+                        phase: 'forecast',
+                        autoStarted: false
+                    };
+                }).filter(Boolean)
+                : [];
 
             return {
                 id: `${payload.id || 'sequence'}|${payload.si ?? ''}|${payload.du ?? ''}|${direction}|${payload.ph || ''}`,
@@ -928,7 +974,8 @@
                 sequenceName,
                 direction,
                 phase: payload.ph || 'idle',
-                autoStarted: false
+                autoStarted: false,
+                upcoming
             };
         }
 
@@ -1003,6 +1050,13 @@
             }
             if (payload.st != null && payload.en != null) {
                 lines.push(`Lift span: ${payload.st}-${payload.en} cm`);
+            }
+            if (Array.isArray(plan.upcoming) && plan.upcoming.length) {
+                const upcomingText = plan.upcoming
+                    .slice(0, 4)
+                    .map((entry) => `${formatQrSyncSeconds(entry.startAt - now)} ${entry.sequenceName}`)
+                    .join(' | ');
+                lines.push(`Upcoming: ${upcomingText}`);
             }
             return lines.join('\n');
         }
@@ -1092,7 +1146,28 @@
                 await stopCapture();
                 showToast('QR Sync Complete');
             }
+            if (promoteNextForecastPlan(planId)) {
+                return;
+            }
             updateQrSyncPlanUi();
+        }
+
+        function promoteNextForecastPlan(planId) {
+            if (!qrSyncPlan || qrSyncPlan.id !== planId || !Array.isArray(qrSyncPlan.upcoming)) {
+                return false;
+            }
+            const now = Date.now();
+            const upcoming = qrSyncPlan.upcoming.filter((entry) => entry && entry.stopAt > now);
+            if (!upcoming.length) {
+                return false;
+            }
+            const [nextPlan, ...remaining] = upcoming;
+            scheduleQrSyncPlan({
+                ...nextPlan,
+                upcoming: remaining,
+                autoStarted: false
+            });
+            return true;
         }
 
         function scheduleQrSyncPlan(plan) {

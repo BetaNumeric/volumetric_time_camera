@@ -1,0 +1,1 @@
+self.CAMERA_APP_VERSION = '1.93';
