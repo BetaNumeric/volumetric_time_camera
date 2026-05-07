@@ -12,7 +12,7 @@
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon_32.png">
     <link rel="apple-touch-icon" href="./icons/icon_192.png">
-    <title>v1.89 Volumetric Time Camera</title>
+    <title>v1.90 Volumetric Time Camera</title>
     <link rel="stylesheet" href="./styles.css">
     <style>
         body {
@@ -249,7 +249,19 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            pointer-events: none;
+            pointer-events: auto;
+            cursor: pointer;
+            user-select: none;
+        }
+        .sync-hud.is-expanded {
+            width: min(24rem, calc(100vw - 3rem));
+            max-width: min(24rem, calc(100vw - 3rem));
+            border-radius: 1rem;
+            text-align: left;
+            text-transform: none;
+            white-space: pre-line;
+            line-height: 1.35;
+            letter-spacing: 0.02em;
         }
         .fullscreen-toggle {
             position: absolute;
@@ -796,6 +808,7 @@
         let qrSyncPlan = null;
         let qrSyncLastRawValue = '';
         let qrSyncLastScanAt = 0;
+        let qrSyncHudExpanded = false;
 
         function setButtonDisabled(button, disabled) {
             button.disabled = disabled;
@@ -943,6 +956,9 @@
             if (!plan) {
                 return '';
             }
+            if (qrSyncHudExpanded) {
+                return qrSyncHudDetails(plan, now);
+            }
             const prefix = qrSyncAction === 'record' ? 'QR' : 'QR info';
             if (plan.startAt == null || plan.stopAt == null) {
                 return `${prefix} ${plan.sequenceName}`;
@@ -958,10 +974,43 @@
             return `${prefix} ${plan.sequenceName}`;
         }
 
+        function qrSyncDirectionLabel(direction) {
+            if (direction > 0) return 'Up';
+            if (direction < 0) return 'Down';
+            return 'Idle';
+        }
+
+        function qrSyncHudDetails(plan, now = Date.now()) {
+            const payload = plan.payload || {};
+            const lines = [
+                `QR Sync: ${QR_SYNC_ACTIONS[qrSyncAction] || QR_SYNC_ACTIONS.record}`,
+                `Sequence: ${plan.sequenceName}`,
+                `Phase: ${plan.phase || 'idle'}`,
+                `Direction: ${qrSyncDirectionLabel(plan.direction)}`
+            ];
+
+            if (plan.startAt != null) {
+                lines.push(now < plan.startAt ? `Starts in: ${formatQrSyncSeconds(plan.startAt - now)}` : 'Starts in: now');
+            } else {
+                lines.push('Starts in: idle');
+            }
+            if (plan.durationMs != null) {
+                lines.push(`Capture: ${formatQrSyncSeconds(plan.durationMs)}`);
+            }
+            if (payload.fr != null) {
+                lines.push(`Frames: ${payload.fr}`);
+            }
+            if (payload.st != null && payload.en != null) {
+                lines.push(`Lift span: ${payload.st}-${payload.en} cm`);
+            }
+            return lines.join('\n');
+        }
+
         function updateQrSyncPlanUi() {
             const now = Date.now();
             if (!qrSyncEnabled) {
                 qrSyncHud.classList.add('hidden');
+                qrSyncHud.classList.remove('is-expanded');
                 setQrSyncStatus('Scanner off');
                 return;
             }
@@ -970,6 +1019,7 @@
                 const hudText = qrSyncHudText(qrSyncPlan, now);
                 qrSyncHud.textContent = hudText;
                 qrSyncHud.classList.toggle('hidden', !hudText);
+                qrSyncHud.classList.toggle('is-expanded', qrSyncHudExpanded && Boolean(hudText));
 
                 if (qrSyncAction === 'info') {
                     if (qrSyncPlan.startAt != null && qrSyncPlan.stopAt != null && now < qrSyncPlan.startAt) {
@@ -990,6 +1040,7 @@
             }
 
             qrSyncHud.classList.add('hidden');
+            qrSyncHud.classList.remove('is-expanded');
             setQrSyncStatus(mediaStream ? 'Looking for QR' : 'Initialize camera to scan');
         }
 
@@ -1098,7 +1149,8 @@
 
         function applyQrSyncPayload(payload, rawValue, source) {
             const now = Date.now();
-            if (rawValue === qrSyncLastRawValue && now - qrSyncLastScanAt < 500) {
+            if (rawValue === qrSyncLastRawValue) {
+                qrSyncLastScanAt = now;
                 return;
             }
             qrSyncLastRawValue = rawValue;
@@ -2924,6 +2976,13 @@
         rollingStackWindowSlider.addEventListener('input', handleRollingStackWindowInput);
         qrSyncEnabledInput.addEventListener('change', () => setQrSyncEnabled(qrSyncEnabledInput.checked));
         qrSyncActionSelect.addEventListener('change', () => setQrSyncAction(qrSyncActionSelect.value));
+        qrSyncHud.addEventListener('click', () => {
+            if (!qrSyncPlan) {
+                return;
+            }
+            qrSyncHudExpanded = !qrSyncHudExpanded;
+            updateQrSyncPlanUi();
+        });
         cameraLensSelect.addEventListener('change', handleCameraLensChange);
         closePreviewBtn.addEventListener('click', closeReviewCapture);
         fullscreenToggleBtn.addEventListener('click', handleFullscreenToggleClick);
