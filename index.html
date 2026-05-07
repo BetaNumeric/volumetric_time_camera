@@ -12,7 +12,7 @@
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon_32.png">
     <link rel="apple-touch-icon" href="./icons/icon_192.png">
-    <title>v1.91 Volumetric Time Camera</title>
+    <title>v1.92 Volumetric Time Camera</title>
     <link rel="stylesheet" href="./styles.css">
     <style>
         body {
@@ -960,7 +960,7 @@
             if (qrSyncHudExpanded) {
                 return qrSyncHudDetails(plan, now);
             }
-            const prefix = qrSyncAction === 'record' ? 'QR' : 'QR info';
+            const prefix = qrSyncAction === 'record' ? 'Next' : 'QR info';
             if (plan.startAt == null || plan.stopAt == null) {
                 return `${prefix} ${plan.sequenceName}`;
             }
@@ -1068,7 +1068,7 @@
                 updateQrSyncPlanUi();
                 return;
             }
-            if (!mediaStream || captureState === STATES.REVIEW) {
+            if (!mediaStream) {
                 updateQrSyncPlanUi();
                 return;
             }
@@ -1127,7 +1127,12 @@
         }
 
         function resumeQrSyncPlanWindow() {
-            if (!qrSyncEnabled || !planCanAutoRecord(qrSyncPlan) || captureState !== STATES.PREVIEW || !mediaStream) {
+            if (
+                !qrSyncEnabled
+                || !planCanAutoRecord(qrSyncPlan)
+                || !mediaStream
+                || !canQrSyncScanInCurrentState()
+            ) {
                 return;
             }
             const now = Date.now();
@@ -1232,7 +1237,13 @@
         }
 
         async function scanQrSyncFrame() {
-            if (!qrSyncEnabled || qrSyncDetecting || !mediaStream || captureState !== STATES.PREVIEW || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+            if (
+                !qrSyncEnabled
+                || qrSyncDetecting
+                || !mediaStream
+                || !canQrSyncScanInCurrentState()
+                || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
+            ) {
                 return;
             }
 
@@ -1256,7 +1267,7 @@
         }
 
         function scheduleQrSyncScan() {
-            if (!qrSyncEnabled || qrSyncScanTimerId || !mediaStream || captureState !== STATES.PREVIEW) {
+            if (!qrSyncEnabled || qrSyncScanTimerId || !mediaStream || !canQrSyncScanInCurrentState()) {
                 return;
             }
             qrSyncScanTimerId = window.setTimeout(async () => {
@@ -1269,6 +1280,10 @@
         function stopQrSyncScan() {
             window.clearTimeout(qrSyncScanTimerId);
             qrSyncScanTimerId = 0;
+        }
+
+        function canQrSyncScanInCurrentState() {
+            return captureState === STATES.PREVIEW || captureState === STATES.REVIEW;
         }
 
         function setQrSyncEnabled(enabled, options = {}) {
@@ -2174,7 +2189,7 @@
             closePreviewBtn.classList.toggle('hidden', !hasCapture);
             syncFullscreenUi();
             resumeQrSyncPlanWindow();
-            if (qrSyncEnabled && mediaStream && captureState === STATES.PREVIEW) {
+            if (qrSyncEnabled && mediaStream && canQrSyncScanInCurrentState()) {
                 scheduleQrSyncScan();
             } else {
                 stopQrSyncScan();
@@ -2862,12 +2877,15 @@
                 return;
             }
 
-            if (mediaStream && captureState !== STATES.REVIEW) {
+            if (mediaStream) {
                 video.play().catch(() => {});
-                startRenderLoop();
                 if (captureState === STATES.PREVIEW) {
+                    startRenderLoop();
                     drawFrame();
+                } else if (captureState === STATES.CAPTURING) {
+                    startRenderLoop();
                 }
+                scheduleQrSyncScan();
             }
         }
 
