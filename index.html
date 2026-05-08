@@ -826,6 +826,7 @@
         let qrSyncLastRawValue = '';
         let qrSyncLastScanAt = 0;
         let qrSyncHudExpanded = false;
+        let qrSyncWaitingForFreshScan = false;
 
         function setButtonDisabled(button, disabled) {
             button.disabled = disabled;
@@ -1096,7 +1097,9 @@
 
             qrSyncHud.classList.add('hidden');
             qrSyncHud.classList.remove('is-expanded');
-            setQrSyncStatus(mediaStream ? 'Looking for QR' : 'Initialize camera to scan');
+            setQrSyncStatus(mediaStream
+                ? (qrSyncWaitingForFreshScan ? 'Looking for next QR' : 'Looking for QR')
+                : 'Initialize camera to scan');
         }
 
         function syncQrSyncSettingsUi() {
@@ -1168,6 +1171,16 @@
                 autoStarted: false
             });
             return true;
+        }
+
+        function cancelQrSyncPlanUntilNextScan(message = 'QR Sync stopped') {
+            clearQrSyncTimers({ clearPlan: true });
+            qrSyncHudExpanded = false;
+            qrSyncWaitingForFreshScan = true;
+            setQrSyncStatus('Looking for next QR');
+            updateQrSyncPlanUi();
+            showToast(message);
+            scheduleQrSyncScan();
         }
 
         function scheduleQrSyncPlan(plan) {
@@ -1242,6 +1255,7 @@
                 return;
             }
 
+            qrSyncWaitingForFreshScan = false;
             const hadPlan = Boolean(qrSyncPlan);
             scheduleQrSyncPlan(plan);
             if (source === 'camera' && !hadPlan) {
@@ -1367,6 +1381,7 @@
                 writeStoredBoolean(QR_SYNC_STORAGE_KEY, qrSyncEnabled);
             }
             if (!qrSyncEnabled) {
+                qrSyncWaitingForFreshScan = false;
                 stopQrSyncScan();
                 if (!options.keepPlan) {
                     clearQrSyncTimers({ clearPlan: true });
@@ -2937,7 +2952,7 @@
         function handleTriggerClick() {
             if (captureState === STATES.CAPTURING) {
                 if (qrSyncPlan) {
-                    qrSyncPlan.autoStarted = false;
+                    cancelQrSyncPlanUntilNextScan();
                 }
                 stopCapture();
                 return;

@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Time Volume Camera",
-  "short_name": "Time Volume",
-  "description": "Long-exposure camera interface for the Time Volume installation.",
+  "name": "Volumetric Time Camera",
+  "short_name": "Time Cam",
+  "description": "Long-exposure camera interface for the Volumetric Time installation.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
