@@ -544,6 +544,23 @@
                                 <span class="text-[11px] font-black uppercase tracking-[0.18em] text-white">Camera App</span>
                                 <span id="appVersionValue" class="text-[11px] uppercase tracking-[0.18em] text-neutral-400">v-</span>
                             </div>
+                            <div class="mt-3 flex items-center justify-between gap-4">
+                                <span class="text-[11px] font-black uppercase tracking-[0.18em] text-white">Artist</span>
+                                <a href="https://www.timredlich.com/" target="_blank" rel="noopener noreferrer" class="text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-300 underline decoration-white/20 underline-offset-4">timredlich.com</a>
+                            </div>
+                        </div>
+
+                        <div class="block rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                            <div class="flex items-center justify-between gap-4">
+                                <span class="text-[11px] font-black uppercase tracking-[0.18em] text-white">Save Captures</span>
+                                <span id="imageFolderSaveEnabledValue" class="text-[11px] uppercase tracking-[0.18em] text-neutral-400">On</span>
+                            </div>
+                            <input id="imageFolderSaveEnabledInput" type="checkbox" class="mt-3 accent-white" style="width: 1.25rem; height: 1.25rem;" aria-label="Save captures to image folder">
+                            <div class="mt-3 flex items-center justify-between gap-4">
+                                <span class="text-[11px] font-black uppercase tracking-[0.18em] text-white">Folder Limit</span>
+                                <span id="imageFolderLimitValue" class="text-[11px] uppercase tracking-[0.18em] text-neutral-400">50</span>
+                            </div>
+                            <input id="imageFolderLimitSlider" type="range" min="10" max="200" step="10" value="50" class="mt-3 w-full accent-white" aria-label="Maximum captures in image folder">
                         </div>
                     </div>
                 </div>
@@ -749,6 +766,10 @@
         const toast = document.getElementById('toast');
         const qrSyncHud = document.getElementById('qrSyncHud');
         const appVersionValue = document.getElementById('appVersionValue');
+        const imageFolderSaveEnabledInput = document.getElementById('imageFolderSaveEnabledInput');
+        const imageFolderSaveEnabledValue = document.getElementById('imageFolderSaveEnabledValue');
+        const imageFolderLimitSlider = document.getElementById('imageFolderLimitSlider');
+        const imageFolderLimitValue = document.getElementById('imageFolderLimitValue');
         const cameraFooter = document.getElementById('cameraFooter');
 
         appVersionValue.textContent = `v${APP_VERSION}`;
@@ -794,6 +815,14 @@
         const IMAGE_FOLDER_DB_NAME = 'time-volume-camera-image-folder';
         const IMAGE_FOLDER_DB_VERSION = 1;
         const IMAGE_FOLDER_STORE_NAME = 'captures';
+        const IMAGE_FOLDER_SAVE_STORAGE_KEY = 'time-volume-camera-image-folder-save-enabled';
+        const IMAGE_FOLDER_LIMIT_STORAGE_KEY = 'time-volume-camera-image-folder-limit';
+        const IMAGE_FOLDER_DEFAULT_LIMIT = 50;
+        const IMAGE_FOLDER_MIN_LIMIT = 10;
+        const IMAGE_FOLDER_MAX_LIMIT = 200;
+        const IMAGE_FOLDER_LIMIT_STEP = 10;
+        let imageFolderSaveEnabled = readStoredBoolean(IMAGE_FOLDER_SAVE_STORAGE_KEY, true);
+        let imageFolderMaxCaptures = normalizeImageFolderMaxCaptures(readStoredString(IMAGE_FOLDER_LIMIT_STORAGE_KEY, String(IMAGE_FOLDER_DEFAULT_LIMIT)));
         const STACK_BLEND_MODES = {
             lighten: {
                 label: 'Brightest',
@@ -898,6 +927,15 @@
             try {
                 window.localStorage.setItem(key, value);
             } catch (error) {}
+        }
+
+        function normalizeImageFolderMaxCaptures(value) {
+            const parsed = Number(value);
+            if (!Number.isFinite(parsed)) {
+                return IMAGE_FOLDER_DEFAULT_LIMIT;
+            }
+            const stepped = Math.round(parsed / IMAGE_FOLDER_LIMIT_STEP) * IMAGE_FOLDER_LIMIT_STEP;
+            return Math.min(IMAGE_FOLDER_MAX_LIMIT, Math.max(IMAGE_FOLDER_MIN_LIMIT, stepped));
         }
 
         function setQrSyncStatus(message) {
@@ -1466,7 +1504,19 @@
                 fileName: record.fileName,
                 blob: record.blob,
                 objectUrl: URL.createObjectURL(record.blob),
-                downloaded: Boolean(record.downloaded)
+                downloaded: Boolean(record.downloaded),
+                inFolder: true
+            };
+        }
+
+        function createCurrentCaptureEntry(record) {
+            return {
+                id: record.id,
+                createdAt: record.createdAt,
+                fileName: record.fileName,
+                blob: record.blob,
+                downloaded: Boolean(record.downloaded),
+                inFolder: false
             };
         }
 
@@ -1585,6 +1635,62 @@
             });
         }
 
+        function syncImageFolderSettingsUi() {
+            imageFolderSaveEnabledInput.checked = imageFolderSaveEnabled;
+            imageFolderSaveEnabledValue.textContent = imageFolderSaveEnabled ? 'On' : 'Off';
+            imageFolderLimitSlider.value = String(imageFolderMaxCaptures);
+            imageFolderLimitValue.textContent = String(imageFolderMaxCaptures);
+        }
+
+        function handleImageFolderSaveEnabledChange() {
+            imageFolderSaveEnabled = imageFolderSaveEnabledInput.checked;
+            writeStoredBoolean(IMAGE_FOLDER_SAVE_STORAGE_KEY, imageFolderSaveEnabled);
+            syncImageFolderSettingsUi();
+            showToast(imageFolderSaveEnabled ? 'Folder saving on' : 'Folder saving off');
+        }
+
+        function handleImageFolderLimitInput() {
+            imageFolderMaxCaptures = normalizeImageFolderMaxCaptures(imageFolderLimitSlider.value);
+            writeStoredString(IMAGE_FOLDER_LIMIT_STORAGE_KEY, String(imageFolderMaxCaptures));
+            syncImageFolderSettingsUi();
+        }
+
+        function handleImageFolderLimitChange() {
+            handleImageFolderLimitInput();
+            enforceImageFolderLimit({ notify: true }).catch((error) => {
+                console.warn('Image Folder Limit Error:', error);
+                showToast('Could not update Folder');
+            });
+        }
+
+        async function enforceImageFolderLimit(options = {}) {
+            imageFolderMaxCaptures = normalizeImageFolderMaxCaptures(imageFolderMaxCaptures);
+            if (imageFolder.length <= imageFolderMaxCaptures) {
+                renderImageFolder();
+                return 0;
+            }
+
+            imageFolder.sort((first, second) => second.createdAt - first.createdAt);
+            const removedCaptures = imageFolder.splice(imageFolderMaxCaptures);
+
+            for (const capture of removedCaptures) {
+                if (currentCapture && currentCapture.id === capture.id) {
+                    currentCapture.inFolder = false;
+                }
+                revokeImageFolderEntry(capture);
+            }
+            renderImageFolder();
+
+            await Promise.allSettled(removedCaptures.map((capture) => deleteStoredImageFolderRecord(capture.id)));
+
+            if (options.notify && removedCaptures.length) {
+                const suffix = removedCaptures.length === 1 ? '' : 's';
+                showToast(`Folder limit ${imageFolderMaxCaptures}; removed ${removedCaptures.length} oldest${suffix}`);
+            }
+
+            return removedCaptures.length;
+        }
+
         function formatCaptureTime(createdAt) {
             return new Intl.DateTimeFormat(undefined, {
                 month: 'short',
@@ -1668,24 +1774,30 @@
                 const sessionEntries = imageFolder.filter((entry) => !storedIds.has(entry.id));
                 imageFolder = [...storedEntries, ...sessionEntries]
                     .sort((first, second) => second.createdAt - first.createdAt);
-                renderImageFolder();
+                await enforceImageFolderLimit();
             } catch (error) {
                 console.warn('Image Folder Load Error:', error);
                 renderImageFolder();
             }
         }
 
-        function addCaptureToImageFolder(record) {
+        async function addCaptureToImageFolder(record) {
             const entry = createImageFolderEntry(record);
             imageFolder.unshift(entry);
             renderImageFolder();
+            let stored = true;
 
-            persistImageFolderRecord(record).catch((error) => {
+            try {
+                await persistImageFolderRecord(record);
+            } catch (error) {
+                stored = false;
                 console.warn('Image Folder Save Error:', error);
                 showToast('Stored for this session only');
-            });
+            }
 
-            return entry;
+            const removedCount = await enforceImageFolderLimit({ notify: true });
+
+            return { entry, removedCount, stored };
         }
 
         function findImageFolderCapture(id) {
@@ -2723,9 +2835,17 @@
             try {
                 const blob = await canvasToBlob(canvas, 'image/jpeg', 0.92);
                 const captureRecord = createCaptureRecord(blob);
-                currentCapture = addCaptureToImageFolder(captureRecord);
+                if (imageFolderSaveEnabled) {
+                    const result = await addCaptureToImageFolder(captureRecord);
+                    currentCapture = result.entry;
+                    if (result.stored && !result.removedCount) {
+                        showToast('Added to Folder');
+                    }
+                } else {
+                    currentCapture = createCurrentCaptureEntry(captureRecord);
+                    showToast('Capture ready');
+                }
                 showReviewImage(blob);
-                showToast('Added to Folder');
             } catch (error) {
                 console.error('Review Image Error:', error);
             }
@@ -2875,7 +2995,7 @@
                 renderImageFolder();
 
                 // Clear current capture state if needed
-                if (currentCapture && captureState === STATES.REVIEW) {
+                if (currentCapture && currentCapture.inFolder !== false && captureState === STATES.REVIEW) {
                     clearReviewImage();
                     currentCapture = null;
 
@@ -2977,14 +3097,16 @@
                 
                 if (currentCapture) {
                     currentCapture.downloaded = true;
-                    
-                    try {
-                        await persistImageFolderRecord(currentCapture);
-                    } catch (dbError) {
-                        console.warn('Could not save download state to DB (likely incognito mode):', dbError);
+
+                    if (currentCapture.inFolder !== false) {
+                        try {
+                            await persistImageFolderRecord(currentCapture);
+                        } catch (dbError) {
+                            console.warn('Could not save download state to DB (likely incognito mode):', dbError);
+                        }
+
+                        renderImageFolder();
                     }
-                    
-                    renderImageFolder();
                 }
 
                 showToast('Saved JPG');
@@ -3140,6 +3262,9 @@
         rollingStackWindowSlider.addEventListener('input', handleRollingStackWindowInput);
         qrSyncEnabledInput.addEventListener('change', () => setQrSyncEnabled(qrSyncEnabledInput.checked));
         qrSyncActionSelect.addEventListener('change', () => setQrSyncAction(qrSyncActionSelect.value));
+        imageFolderSaveEnabledInput.addEventListener('change', handleImageFolderSaveEnabledChange);
+        imageFolderLimitSlider.addEventListener('input', handleImageFolderLimitInput);
+        imageFolderLimitSlider.addEventListener('change', handleImageFolderLimitChange);
         qrSyncHud.addEventListener('click', () => {
             if (!qrSyncPlan) {
                 return;
@@ -3169,6 +3294,7 @@
 
         syncStackSettingsUi();
         syncQrSyncSettingsUi();
+        syncImageFolderSettingsUi();
         applyQrSyncFromLocation();
         renderImageFolder();
         loadImageFolder();
