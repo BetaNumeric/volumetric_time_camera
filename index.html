@@ -228,6 +228,29 @@
             opacity: 1;
             transform: translate(-50%, 0);
         }
+        input[type="checkbox"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 1.5px solid rgba(255, 255, 255, 0.42);
+            border-radius: 0.35rem;
+            background-color: rgba(255, 255, 255, 0.06);
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: 0.9rem 0.9rem;
+            display: inline-block;
+            flex-shrink: 0;
+            vertical-align: middle;
+        }
+        input[type="checkbox"]:checked {
+            border-color: #fff;
+            background-color: #fff;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' d='M4 10.5l4 4L16 6'/%3E%3C/svg%3E");
+        }
+        input[type="checkbox"]:disabled {
+            opacity: 0.38;
+        }
         .sync-hud {
             position: absolute;
             top: max(1.25rem, calc(env(safe-area-inset-top) + 0.75rem));
@@ -482,12 +505,13 @@
                             </select>
                         </label>
 
-                        <label class="block rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                        <label id="rollingStackEnabledField" class="block rounded-2xl border border-white/5 bg-white/[0.03] p-4">
                             <div class="flex items-center justify-between gap-4">
                                 <span class="text-[11px] font-black uppercase tracking-[0.18em] text-white">Rolling Stack</span>
                                 <span id="rollingStackEnabledValue" class="text-[11px] uppercase tracking-[0.18em] text-neutral-400">Off</span>
                             </div>
                             <input id="rollingStackEnabledInput" type="checkbox" class="mt-3 accent-white" style="width: 1.25rem; height: 1.25rem;">
+                            <p id="rollingStackLockHint" class="mt-3 hidden text-[11px] font-bold uppercase tracking-[0.14em] text-neutral-500">Off during QR auto record</p>
                         </label>
 
                         <label id="rollingStackWindowField" class="hidden block rounded-2xl border border-white/5 bg-white/[0.03] p-4">
@@ -700,8 +724,10 @@
         const medianFrameCountField = document.getElementById('medianFrameCountField');
         const medianFrameCountSlider = document.getElementById('medianFrameCountSlider');
         const medianFrameCountValue = document.getElementById('medianFrameCountValue');
+        const rollingStackEnabledField = document.getElementById('rollingStackEnabledField');
         const rollingStackEnabledInput = document.getElementById('rollingStackEnabledInput');
         const rollingStackEnabledValue = document.getElementById('rollingStackEnabledValue');
+        const rollingStackLockHint = document.getElementById('rollingStackLockHint');
         const rollingStackWindowField = document.getElementById('rollingStackWindowField');
         const rollingStackWindowSlider = document.getElementById('rollingStackWindowSlider');
         const rollingStackWindowValue = document.getElementById('rollingStackWindowValue');
@@ -1387,6 +1413,7 @@
                     clearQrSyncTimers({ clearPlan: true });
                 }
             }
+            syncStackSettingsUi();
             syncQrSyncSettingsUi();
             scheduleQrSyncScan();
         }
@@ -1406,6 +1433,7 @@
                 clearQrSyncTimers();
             }
 
+            syncStackSettingsUi();
             syncQrSyncSettingsUi();
         }
 
@@ -1746,7 +1774,25 @@
 
         document.addEventListener('pointercancel', () => { appSwipeStartY = 0; }, { passive: true });
 
+        function isQrSyncAutoRecordMode() {
+            return qrSyncEnabled && qrSyncAction === 'record';
+        }
+
+        function enforceRollingStackAvailability() {
+            const locked = isQrSyncAutoRecordMode();
+            if (locked && rollingStackEnabled) {
+                rollingStackEnabled = false;
+                resetRollingStackFrames();
+                clearCompositeCanvas();
+                if (captureState === STATES.CAPTURING) {
+                    drawFrame();
+                }
+            }
+            return locked;
+        }
+
         function syncStackSettingsUi() {
+            const rollingStackLocked = enforceRollingStackAvailability();
             const mode = STACK_BLEND_MODES[stackBlendModeKey] || STACK_BLEND_MODES.lighten;
             stackBlendModeSelect.value = stackBlendModeKey;
             stackBlendModeValue.textContent = mode.label;
@@ -1757,7 +1803,10 @@
             medianFrameCountSlider.value = String(stackMedianFrameCount);
             medianFrameCountValue.textContent = String(stackMedianFrameCount);
             rollingStackEnabledInput.checked = rollingStackEnabled;
-            rollingStackEnabledValue.textContent = rollingStackEnabled ? 'On' : 'Off';
+            rollingStackEnabledInput.disabled = rollingStackLocked;
+            rollingStackEnabledField.classList.toggle('opacity-60', rollingStackLocked);
+            rollingStackLockHint.classList.toggle('hidden', !rollingStackLocked);
+            rollingStackEnabledValue.textContent = rollingStackLocked ? 'QR Auto' : (rollingStackEnabled ? 'On' : 'Off');
             rollingStackWindowField.classList.toggle('hidden', !rollingStackEnabled);
             rollingStackWindowSlider.value = String(rollingStackWindowSeconds);
             rollingStackWindowValue.textContent = `${rollingStackWindowSeconds}s`;
@@ -3024,6 +3073,12 @@
         }
 
         function handleRollingStackEnabledChange() {
+            if (isQrSyncAutoRecordMode()) {
+                rollingStackEnabled = false;
+                syncStackSettingsUi();
+                showToast('Rolling Stack is off during QR auto record');
+                return;
+            }
             rollingStackEnabled = rollingStackEnabledInput.checked;
             clearCompositeCanvas();
             syncStackSettingsUi();
