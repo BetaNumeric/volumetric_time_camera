@@ -994,9 +994,9 @@
             const durationMs = hasDuration ? Math.max(0, Number(payload.du)) : null;
             const startAt = startInMs == null ? null : now + startInMs;
             const stopAt = startAt != null && durationMs ? startAt + durationMs : null;
-            const direction = Number(payload.d || 0);
-            const sequenceName = payload.n || payload.id || 'Sequence';
-            const inferredPhase = payload.ph || (startAt != null && stopAt != null ? 'scheduled' : 'idle');
+            const direction = 0;
+            const sequenceName = payload.n || 'Sequence';
+            const inferredPhase = startAt != null && stopAt != null ? 'scheduled' : 'idle';
             const upcoming = Array.isArray(payload.u)
                 ? payload.u.map((entry, index) => {
                     if (!Array.isArray(entry) || entry.length < 2) {
@@ -1012,7 +1012,7 @@
                     const entryDirection = Number(entry[2] || 0);
                     const entryName = String(entry[3] || `Upcoming ${index + 1}`);
                     return {
-                        id: `${payload.id || 'sequence'}|u${index}|${entryStartInMs}|${entryDurationMs}|${entryDirection}|${entryName}`,
+                        id: `${sequenceName}|u${index}|${entryStartInMs}|${entryDurationMs}|${entryDirection}|${entryName}`,
                         rawValue,
                         source: 'forecast',
                         payload: {},
@@ -1029,7 +1029,7 @@
                 : [];
 
             return {
-                id: `${payload.id || payload.n || 'sequence'}|${payload.si ?? ''}|${payload.du ?? ''}|${direction}|${inferredPhase}`,
+                id: `${sequenceName}|${payload.si ?? ''}|${payload.du ?? ''}|${inferredPhase}`,
                 rawValue,
                 source,
                 payload,
@@ -1075,23 +1075,17 @@
             }
             const prefix = qrSyncAction === 'record' ? 'Next' : 'QR info';
             if (plan.startAt == null || plan.stopAt == null) {
-                return `${prefix} ${plan.sequenceName}`;
+                return `${prefix}: ${plan.sequenceName}`;
             }
             if (now < plan.startAt) {
-                return `${prefix} ${formatQrSyncSeconds(plan.startAt - now)} ${plan.sequenceName}`;
+                return `${prefix}: ${plan.sequenceName} ${formatQrSyncSeconds(plan.startAt - now)}`;
             }
             if (now < plan.stopAt) {
                 return qrSyncAction === 'record'
-                    ? `${prefix} recording ${formatQrSyncSeconds(plan.stopAt - now)}`
-                    : `${prefix} ${plan.sequenceName}`;
+                    ? `${plan.sequenceName} ${formatQrSyncSeconds(plan.stopAt - now)}`
+                    : `${prefix}: ${plan.sequenceName}`;
             }
-            return `${prefix} ${plan.sequenceName}`;
-        }
-
-        function qrSyncDirectionLabel(direction) {
-            if (direction > 0) return 'Up';
-            if (direction < 0) return 'Down';
-            return 'Idle';
+            return `${prefix}: ${plan.sequenceName}`;
         }
 
         function qrSyncHudDetails(plan, now = Date.now()) {
@@ -1099,8 +1093,7 @@
             const lines = [
                 `QR Sync: ${QR_SYNC_ACTIONS[qrSyncAction] || QR_SYNC_ACTIONS.record}`,
                 `Sequence: ${plan.sequenceName}`,
-                `Phase: ${plan.phase || 'idle'}`,
-                `Direction: ${qrSyncDirectionLabel(plan.direction)}`
+                `Phase: ${plan.phase || 'idle'}`
             ];
 
             if (plan.startAt != null) {
@@ -1110,12 +1103,6 @@
             }
             if (plan.durationMs != null) {
                 lines.push(`Capture: ${formatQrSyncSeconds(plan.durationMs)}`);
-            }
-            if (payload.fr != null) {
-                lines.push(`Frames: ${payload.fr}`);
-            }
-            if (payload.st != null && payload.en != null) {
-                lines.push(`Lift span: ${payload.st}-${payload.en} cm`);
             }
             if (Array.isArray(plan.upcoming) && plan.upcoming.length) {
                 const upcomingText = plan.upcoming
