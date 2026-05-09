@@ -996,9 +996,10 @@
             const stopAt = startAt != null && durationMs ? startAt + durationMs : null;
             const direction = Number(payload.d || 0);
             const sequenceName = payload.n || payload.id || 'Sequence';
+            const inferredPhase = payload.ph || (startAt != null && stopAt != null ? 'scheduled' : 'idle');
             const upcoming = Array.isArray(payload.u)
                 ? payload.u.map((entry, index) => {
-                    if (!Array.isArray(entry) || entry.length < 4) {
+                    if (!Array.isArray(entry) || entry.length < 2) {
                         return null;
                     }
                     const entryStartInMs = Number(entry[0]);
@@ -1009,7 +1010,7 @@
                     const entryStartAt = now + Math.max(0, entryStartInMs);
                     const entryStopAt = entryStartAt + Math.max(0, entryDurationMs);
                     const entryDirection = Number(entry[2] || 0);
-                    const entryName = String(entry[3] || `Sequence ${index + 2}`);
+                    const entryName = String(entry[3] || `Upcoming ${index + 1}`);
                     return {
                         id: `${payload.id || 'sequence'}|u${index}|${entryStartInMs}|${entryDurationMs}|${entryDirection}|${entryName}`,
                         rawValue,
@@ -1028,7 +1029,7 @@
                 : [];
 
             return {
-                id: `${payload.id || 'sequence'}|${payload.si ?? ''}|${payload.du ?? ''}|${direction}|${payload.ph || ''}`,
+                id: `${payload.id || payload.n || 'sequence'}|${payload.si ?? ''}|${payload.du ?? ''}|${direction}|${inferredPhase}`,
                 rawValue,
                 source,
                 payload,
@@ -1038,7 +1039,7 @@
                 durationMs,
                 sequenceName,
                 direction,
-                phase: payload.ph || 'idle',
+                phase: inferredPhase,
                 autoStarted: false,
                 upcoming
             };
