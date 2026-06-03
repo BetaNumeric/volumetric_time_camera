@@ -125,6 +125,33 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 0.75rem;
         }
+        .image-folder-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+        }
+        .image-folder-control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .image-folder-toolbar-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .image-folder-selection-count {
+            color: rgb(212, 212, 212);
+            font-size: 0.625rem;
+            font-weight: 900;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
         @media (min-width: 640px) {
             .image-folder-grid {
                 grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -136,7 +163,12 @@
             border-radius: 0.5rem;
             background: rgba(255, 255, 255, 0.04);
         }
+        .image-folder-card.is-selected {
+            border-color: rgba(255, 255, 255, 0.55);
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4);
+        }
         .image-folder-preview {
+            position: relative;
             width: 100%;
             aspect-ratio: 4 / 3;
             border: 0;
@@ -151,6 +183,43 @@
             height: 100%;
             object-fit: cover;
             display: block;
+        }
+        .image-folder-select-mark {
+            position: absolute;
+            top: 0.5rem;
+            left: 0.5rem;
+            width: 1.75rem;
+            height: 1.75rem;
+            border: 1.5px solid rgba(255, 255, 255, 0.7);
+            border-radius: 9999px;
+            background: rgba(0, 0, 0, 0.58);
+            opacity: 0;
+            transform: scale(0.92);
+            transition: opacity 140ms ease, transform 140ms ease, background-color 140ms ease, border-color 140ms ease;
+            pointer-events: none;
+        }
+        .image-folder-select-mark::after {
+            content: "";
+            position: absolute;
+            left: 0.58rem;
+            top: 0.36rem;
+            width: 0.42rem;
+            height: 0.72rem;
+            border-right: 2px solid #000;
+            border-bottom: 2px solid #000;
+            opacity: 0;
+            transform: rotate(45deg);
+        }
+        .image-folder-card.is-selecting .image-folder-select-mark {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .image-folder-card.is-selected .image-folder-select-mark {
+            border-color: #fff;
+            background: #fff;
+        }
+        .image-folder-card.is-selected .image-folder-select-mark::after {
+            opacity: 1;
         }
         .image-folder-meta {
             display: flex;
@@ -256,8 +325,11 @@
             align-items: center;
             justify-content: center;
             gap: 1rem;
+            overflow: hidden;
         }
         .lightbox-image {
+            position: relative;
+            z-index: 1;
             max-width: 100%;
             max-height: calc(100% - 4.5rem);
             width: auto;
@@ -266,8 +338,21 @@
             border-radius: 0.35rem;
             background: #050505;
             box-shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
+            touch-action: none;
+            transform-origin: center center;
+            will-change: transform;
+            cursor: zoom-in;
+            -webkit-user-drag: none;
+        }
+        .lightbox-image.is-zoomed {
+            cursor: grab;
+        }
+        .lightbox-image.is-panning {
+            cursor: grabbing;
         }
         .lightbox-toolbar {
+            position: relative;
+            z-index: 3;
             width: min(30rem, 100%);
             min-height: 3.25rem;
             display: flex;
@@ -293,7 +378,7 @@
         .lightbox-actions {
             display: flex;
             align-items: center;
-            gap: 0.45rem;
+            gap: 0.85rem;
             flex-shrink: 0;
         }
         .toast {
@@ -475,7 +560,7 @@
         }
         #imageFolderSheet {
             transform: translateY(100%);
-            transition: transform 1000ms cubic-bezier(0.4, 0, 0.2, 1);
+            transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
         }
         #imageFolderPanel.is-open #imageFolderSheet {
             transform: translateY(0);
@@ -682,13 +767,37 @@
                     </button>
                 </div>
                 <div class="max-h-[calc(78vh-73px)] overflow-y-auto p-4 pb-8">
-                    <div id="imageFolderControls" class="hidden flex items-center justify-between gap-3 mb-4">
-                        <button id="deleteAllBtn" class="px-5 py-2.5 rounded-full bg-red-500/10 text-red-400 text-[10px] font-bold uppercase tracking-widest active:scale-95 transition-transform border border-red-500/20" aria-label="Delete all captures">
-                            Delete All
-                        </button>
-                        <button id="downloadAllBtn" class="px-5 py-2.5 rounded-full bg-white/10 text-white text-[10px] font-bold uppercase tracking-widest active:scale-95 transition-transform border border-white/20" aria-label="Download all captures">
-                            Download All
-                        </button>
+                    <div id="imageFolderControls" class="hidden image-folder-controls mb-4">
+                        <div id="imageFolderDefaultControls" class="image-folder-control-row">
+                            <button id="selectImagesBtn" class="px-5 py-2.5 rounded-full bg-white/10 text-white text-[10px] font-bold uppercase tracking-widest active:scale-95 transition-transform border border-white/20" aria-label="Select multiple captures">
+                                Select
+                            </button>
+                            <div class="image-folder-toolbar-actions">
+                                <button id="deleteAllBtn" class="px-5 py-2.5 rounded-full bg-red-500/10 text-red-400 text-[10px] font-bold uppercase tracking-widest active:scale-95 transition-transform border border-red-500/20" aria-label="Delete all captures">
+                                    Delete All
+                                </button>
+                                <button id="downloadAllBtn" class="px-5 py-2.5 rounded-full bg-white/10 text-white text-[10px] font-bold uppercase tracking-widest active:scale-95 transition-transform border border-white/20" aria-label="Download all captures">
+                                    Download All
+                                </button>
+                            </div>
+                        </div>
+                        <div id="imageFolderSelectionControls" class="hidden image-folder-control-row">
+                            <span id="imageFolderSelectionCount" class="image-folder-selection-count">0 Selected</span>
+                            <div class="image-folder-toolbar-actions">
+                                <button id="selectAllImagesBtn" class="px-5 py-2.5 rounded-full bg-white/10 text-white text-[10px] font-bold uppercase tracking-widest active:scale-95 transition-transform border border-white/20" aria-label="Select all captures">
+                                    All
+                                </button>
+                                <button id="downloadSelectedBtn" class="px-5 py-2.5 rounded-full bg-white/10 text-white text-[10px] font-bold uppercase tracking-widest active:scale-95 transition-transform border border-white/20" aria-label="Download selected captures">
+                                    Download
+                                </button>
+                                <button id="deleteSelectedBtn" class="px-5 py-2.5 rounded-full bg-red-500/10 text-red-400 text-[10px] font-bold uppercase tracking-widest active:scale-95 transition-transform border border-red-500/20" aria-label="Delete selected captures">
+                                    Delete
+                                </button>
+                                <button id="cancelSelectionBtn" class="px-5 py-2.5 rounded-full bg-white/10 text-white text-[10px] font-bold uppercase tracking-widest active:scale-95 transition-transform border border-white/20" aria-label="Cancel selection">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <p id="imageFolderEmpty" class="py-12 text-center text-[11px] font-black uppercase tracking-[0.18em] text-neutral-500">No captures yet</p>
                     <div id="imageFolderGrid" class="image-folder-grid"></div>
@@ -724,7 +833,7 @@
     <!-- Controls -->
     <div id="appControls" class="w-full bg-neutral-950 p-8 flex items-center justify-between border-t border-white/5 pb-14 z-30">
         
-        <button id="imageFolderBtn" class="group flex flex-col items-center space-y-2 active:scale-90 transition-transform" aria-label="Open image folder">
+        <button id="imageFolderBtn" class="flex flex-col items-center space-y-2 active:scale-90 transition-transform" aria-label="Open image folder">
             <div id="imageFolderPreviewTile" class="relative image-folder-launch rounded-2xl bg-neutral-900 text-neutral-500 border border-white/5 flex items-center justify-center">
                 <img id="imageFolderThumb" src="" alt="Last capture" class="image-folder-launch-thumb hidden" draggable="false">
                 <img id="imageFolderIcon" src="./icons/gallery.png" alt="" class="control-icon" draggable="false">
@@ -740,7 +849,7 @@
             </button>
         </div>
 
-        <button id="saveBtn" class="group flex flex-col items-center space-y-2 active:scale-90 transition-transform">
+        <button id="saveBtn" class="flex flex-col items-center space-y-2 active:scale-90 transition-transform">
             <div class="p-5 rounded-2xl bg-neutral-900 text-neutral-500 border border-white/5">
                 <img src="./icons/download.png" alt="" class="control-icon" draggable="false">
             </div>
@@ -850,12 +959,21 @@
         const imageFolderBackdrop = document.getElementById('imageFolderBackdrop');
         const closeImageFolderBtn = document.getElementById('closeImageFolderBtn');
         const imageFolderControls = document.getElementById('imageFolderControls');
+        const imageFolderDefaultControls = document.getElementById('imageFolderDefaultControls');
+        const imageFolderSelectionControls = document.getElementById('imageFolderSelectionControls');
+        const imageFolderSelectionCount = document.getElementById('imageFolderSelectionCount');
+        const selectImagesBtn = document.getElementById('selectImagesBtn');
+        const selectAllImagesBtn = document.getElementById('selectAllImagesBtn');
+        const downloadSelectedBtn = document.getElementById('downloadSelectedBtn');
+        const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+        const cancelSelectionBtn = document.getElementById('cancelSelectionBtn');
         const deleteAllBtn = document.getElementById('deleteAllBtn');
         const downloadAllBtn = document.getElementById('downloadAllBtn');
         const imageFolderGrid = document.getElementById('imageFolderGrid');
 
         if (isMobileDevice()) {
             downloadAllBtn.style.display = 'none';
+            downloadSelectedBtn.style.display = 'none';
         }
         const imageFolderEmpty = document.getElementById('imageFolderEmpty');
         const settingsBtn = document.getElementById('settingsBtn');
@@ -947,10 +1065,36 @@
         let lightboxCapture = null;
         let imageFolderDbPromise = null;
         let imageFolder = [];
+        let imageFolderSelectionMode = false;
+        let imageFolderSelectedIds = new Set();
+        let imageFolderLongPressTimerId = 0;
+        let imageFolderLongPressPointerId = null;
+        let imageFolderLongPressCaptureId = null;
+        let imageFolderLongPressStartX = 0;
+        let imageFolderLongPressStartY = 0;
+        let imageFolderSuppressNextClick = false;
+        let imageFolderSuppressClickTimerId = 0;
+        let imageFolderLongPressHandledPointerId = null;
         let toastTimeoutId = 0;
         let isCameraFullscreen = false;
         let fullscreenControlTimeoutId = 0;
         let appSwipeStartY = 0;
+        const IMAGE_FOLDER_LONG_PRESS_MS = 520;
+        const IMAGE_FOLDER_LONG_PRESS_MOVE_TOLERANCE = 12;
+        const LIGHTBOX_MIN_SCALE = 1;
+        const LIGHTBOX_MAX_SCALE = 5;
+        let lightboxImageScale = 1;
+        let lightboxImageTranslateX = 0;
+        let lightboxImageTranslateY = 0;
+        let lightboxGesture = null;
+        const lightboxPointers = new Map();
+        let lightboxLastTapAt = 0;
+        let lightboxTapStartAt = 0;
+        let lightboxTapStartX = 0;
+        let lightboxTapStartY = 0;
+        let lightboxTapMoved = false;
+        const LIGHTBOX_DOUBLE_TAP_MS = 320;
+        const LIGHTBOX_TAP_MOVE_TOLERANCE = 12;
         const supportsCaptureSharing = typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && typeof File === 'function';
         const IMAGE_FOLDER_DB_NAME = 'time-volume-camera-image-folder';
         const IMAGE_FOLDER_DB_VERSION = 1;
@@ -1819,6 +1963,7 @@
                 if (currentCapture && currentCapture.id === capture.id) {
                     currentCapture.inFolder = false;
                 }
+                imageFolderSelectedIds.delete(capture.id);
                 revokeImageFolderEntry(capture);
             }
             renderImageFolder();
@@ -1872,24 +2017,221 @@
             }
         }
 
+        function pruneImageFolderSelection() {
+            const captureIds = new Set(imageFolder.map((capture) => capture.id));
+
+            for (const selectedId of imageFolderSelectedIds) {
+                if (!captureIds.has(selectedId)) {
+                    imageFolderSelectedIds.delete(selectedId);
+                }
+            }
+
+            if (!imageFolder.length) {
+                imageFolderSelectionMode = false;
+                imageFolderSelectedIds.clear();
+            }
+        }
+
+        function getSelectedImageFolderCaptures() {
+            return imageFolder.filter((capture) => imageFolderSelectedIds.has(capture.id));
+        }
+
+        function syncImageFolderSelectionUi() {
+            const hasCaptures = imageFolder.length > 0;
+            const selectedCount = getSelectedImageFolderCaptures().length;
+            const allSelected = hasCaptures && selectedCount === imageFolder.length;
+
+            imageFolderControls.classList.toggle('hidden', !hasCaptures);
+            imageFolderDefaultControls.classList.toggle('hidden', imageFolderSelectionMode);
+            imageFolderSelectionControls.classList.toggle('hidden', !imageFolderSelectionMode);
+            imageFolderSelectionCount.textContent = selectedCount === 1 ? '1 Selected' : `${selectedCount} Selected`;
+            selectAllImagesBtn.textContent = allSelected ? 'Clear' : 'All';
+            selectAllImagesBtn.setAttribute('aria-label', allSelected ? 'Clear selected captures' : 'Select all captures');
+            setButtonDisabled(selectImagesBtn, !hasCaptures);
+            setButtonDisabled(selectAllImagesBtn, !hasCaptures);
+            setButtonDisabled(downloadSelectedBtn, selectedCount === 0);
+            setButtonDisabled(deleteSelectedBtn, selectedCount === 0);
+        }
+
+        function setImageFolderSelectionMode(isEnabled) {
+            imageFolderSelectionMode = Boolean(isEnabled && imageFolder.length);
+
+            if (!imageFolderSelectionMode) {
+                imageFolderSelectedIds.clear();
+            }
+
+            renderImageFolder();
+        }
+
+        function toggleImageFolderSelection(id) {
+            if (!imageFolderSelectionMode || !findImageFolderCapture(id)) {
+                return;
+            }
+
+            if (imageFolderSelectedIds.has(id)) {
+                imageFolderSelectedIds.delete(id);
+            } else {
+                imageFolderSelectedIds.add(id);
+            }
+
+            renderImageFolder();
+        }
+
+        function toggleAllImageFolderSelection() {
+            if (!imageFolder.length) {
+                return;
+            }
+
+            const selectedCount = getSelectedImageFolderCaptures().length;
+
+            if (selectedCount === imageFolder.length) {
+                imageFolderSelectedIds.clear();
+            } else {
+                imageFolderSelectedIds = new Set(imageFolder.map((capture) => capture.id));
+            }
+
+            renderImageFolder();
+        }
+
+        function enterImageFolderSelectionWithCapture(id) {
+            if (!findImageFolderCapture(id)) {
+                return;
+            }
+
+            imageFolderSelectionMode = true;
+            imageFolderSelectedIds.add(id);
+            renderImageFolder();
+        }
+
+        function suppressNextImageFolderClick() {
+            window.clearTimeout(imageFolderSuppressClickTimerId);
+            imageFolderSuppressNextClick = true;
+            imageFolderSuppressClickTimerId = window.setTimeout(() => {
+                imageFolderSuppressNextClick = false;
+                imageFolderSuppressClickTimerId = 0;
+            }, 5000);
+        }
+
+        function clearImageFolderClickSuppressionSoon() {
+            if (!imageFolderSuppressNextClick) {
+                return;
+            }
+
+            window.clearTimeout(imageFolderSuppressClickTimerId);
+            imageFolderSuppressClickTimerId = window.setTimeout(() => {
+                imageFolderSuppressNextClick = false;
+                imageFolderSuppressClickTimerId = 0;
+            }, 700);
+        }
+
+        function clearImageFolderLongPressTimer() {
+            window.clearTimeout(imageFolderLongPressTimerId);
+            imageFolderLongPressTimerId = 0;
+            imageFolderLongPressPointerId = null;
+            imageFolderLongPressCaptureId = null;
+        }
+
+        function findImageFolderPreviewCaptureFromTarget(target) {
+            if (!(target instanceof Element)) {
+                return null;
+            }
+
+            const preview = target.closest('.image-folder-preview');
+            if (!preview || !imageFolderGrid.contains(preview)) {
+                return null;
+            }
+
+            const card = preview.closest('[data-capture-id]');
+            return card ? findImageFolderCapture(card.dataset.captureId) : null;
+        }
+
+        function handleImageFolderPointerDown(event) {
+            if (event.pointerType === 'mouse' || imageFolderSelectionMode) {
+                return;
+            }
+
+            const capture = findImageFolderPreviewCaptureFromTarget(event.target);
+            if (!capture) {
+                return;
+            }
+
+            clearImageFolderLongPressTimer();
+            imageFolderLongPressPointerId = event.pointerId;
+            imageFolderLongPressCaptureId = capture.id;
+            imageFolderLongPressStartX = event.clientX;
+            imageFolderLongPressStartY = event.clientY;
+            imageFolderLongPressTimerId = window.setTimeout(() => {
+                const activeCaptureId = imageFolderLongPressCaptureId;
+                const activePointerId = imageFolderLongPressPointerId;
+                clearImageFolderLongPressTimer();
+
+                if (!activeCaptureId || captureState === STATES.CAPTURING) {
+                    return;
+                }
+
+                imageFolderLongPressHandledPointerId = activePointerId;
+                suppressNextImageFolderClick();
+                enterImageFolderSelectionWithCapture(activeCaptureId);
+                showToast('Select mode');
+            }, IMAGE_FOLDER_LONG_PRESS_MS);
+        }
+
+        function handleImageFolderPointerMove(event) {
+            if (!imageFolderLongPressTimerId || event.pointerId !== imageFolderLongPressPointerId) {
+                return;
+            }
+
+            const deltaX = event.clientX - imageFolderLongPressStartX;
+            const deltaY = event.clientY - imageFolderLongPressStartY;
+            const distance = Math.hypot(deltaX, deltaY);
+
+            if (distance > IMAGE_FOLDER_LONG_PRESS_MOVE_TOLERANCE) {
+                clearImageFolderLongPressTimer();
+            }
+        }
+
+        function handleImageFolderPointerEnd(event) {
+            if (event.pointerId === imageFolderLongPressPointerId) {
+                clearImageFolderLongPressTimer();
+            }
+
+            if (event.pointerId === imageFolderLongPressHandledPointerId) {
+                imageFolderLongPressHandledPointerId = null;
+                clearImageFolderClickSuppressionSoon();
+            }
+        }
+
+        function handleImageFolderContextMenu(event) {
+            if (findImageFolderPreviewCaptureFromTarget(event.target)) {
+                event.preventDefault();
+            }
+        }
+
         function renderImageFolder() {
+            pruneImageFolderSelection();
             imageFolderGrid.replaceChildren();
             imageFolderEmpty.classList.toggle('hidden', imageFolder.length > 0);
-            imageFolderControls.classList.toggle('hidden', imageFolder.length === 0);
             imageFolderCount.textContent = imageFolder.length > 99 ? '99+' : String(imageFolder.length);
             imageFolderCount.classList.toggle('hidden', imageFolder.length === 0);
             updateImageFolderButtonPreview();
+            syncImageFolderSelectionUi();
 
             imageFolder.forEach((capture) => {
+                const isSelected = imageFolderSelectedIds.has(capture.id);
                 const card = document.createElement('article');
                 card.className = 'image-folder-card';
+                card.classList.toggle('is-selecting', imageFolderSelectionMode);
+                card.classList.toggle('is-selected', isSelected);
                 card.dataset.captureId = capture.id;
 
                 const previewButton = document.createElement('button');
                 previewButton.type = 'button';
                 previewButton.className = 'image-folder-preview';
-                previewButton.dataset.folderAction = 'review';
-                previewButton.setAttribute('aria-label', 'Review capture');
+                previewButton.dataset.folderAction = imageFolderSelectionMode ? 'toggle-select' : 'review';
+                previewButton.setAttribute('aria-label', imageFolderSelectionMode
+                    ? (isSelected ? 'Deselect capture' : 'Select capture')
+                    : 'Review capture');
+                previewButton.setAttribute('aria-pressed', imageFolderSelectionMode ? String(isSelected) : 'false');
 
                 const image = document.createElement('img');
                 image.src = capture.objectUrl;
@@ -1897,6 +2239,11 @@
                 image.loading = 'lazy';
                 image.draggable = false;
                 previewButton.appendChild(image);
+
+                const selectMark = document.createElement('span');
+                selectMark.className = 'image-folder-select-mark';
+                selectMark.setAttribute('aria-hidden', 'true');
+                previewButton.appendChild(selectMark);
 
                 const meta = document.createElement('div');
                 meta.className = 'image-folder-meta';
@@ -1907,16 +2254,20 @@
 
                 const actions = document.createElement('div');
                 actions.className = 'image-folder-actions';
-                
-                const saveBtn = createFolderActionButton('save', 'Save capture', './icons/download.png');
-                if (capture.downloaded) {
-                    saveBtn.classList.add('opacity-40');
+
+                if (!imageFolderSelectionMode) {
+                    const saveBtn = createFolderActionButton('save', 'Save capture', './icons/download.png');
+                    if (capture.downloaded) {
+                        saveBtn.classList.add('opacity-40');
+                    }
+                    actions.appendChild(saveBtn);
+                    actions.appendChild(createFolderActionButton('delete', 'Remove capture', './icons/delete.png', 'danger'));
                 }
-                actions.appendChild(saveBtn);
-                actions.appendChild(createFolderActionButton('delete', 'Remove capture', './icons/delete.png', 'danger'));
 
                 meta.appendChild(time);
-                meta.appendChild(actions);
+                if (!imageFolderSelectionMode) {
+                    meta.appendChild(actions);
+                }
                 card.appendChild(previewButton);
                 card.appendChild(meta);
                 imageFolderGrid.appendChild(card);
@@ -1962,6 +2313,14 @@
             return imageFolder.find((capture) => capture.id === id) || null;
         }
 
+        function isSettingsOpen() {
+            return !settingsPanel.classList.contains('hidden');
+        }
+
+        function isImageFolderOpen() {
+            return imageFolderPanel.classList.contains('is-open');
+        }
+
         function openImageFolder() {
             if (captureState === STATES.CAPTURING) {
                 return;
@@ -1977,6 +2336,9 @@
 
         function closeImageFolder() {
             closeCaptureLightbox();
+            if (imageFolderSelectionMode) {
+                setImageFolderSelectionMode(false);
+            }
             imageFolderPanel.classList.remove('is-open');
             setTimeout(() => {
                 if (!imageFolderPanel.classList.contains('is-open')) {
@@ -1989,6 +2351,195 @@
             return !captureLightboxPanel.classList.contains('hidden');
         }
 
+        function clampNumber(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function clampLightboxTransform() {
+            lightboxImageScale = clampNumber(lightboxImageScale, LIGHTBOX_MIN_SCALE, LIGHTBOX_MAX_SCALE);
+
+            if (lightboxImageScale <= LIGHTBOX_MIN_SCALE + 0.01) {
+                lightboxImageScale = LIGHTBOX_MIN_SCALE;
+                lightboxImageTranslateX = 0;
+                lightboxImageTranslateY = 0;
+                return;
+            }
+
+            const maxTranslateX = (captureLightboxImage.clientWidth * (lightboxImageScale - 1)) / 2;
+            const maxTranslateY = (captureLightboxImage.clientHeight * (lightboxImageScale - 1)) / 2;
+            lightboxImageTranslateX = clampNumber(lightboxImageTranslateX, -maxTranslateX, maxTranslateX);
+            lightboxImageTranslateY = clampNumber(lightboxImageTranslateY, -maxTranslateY, maxTranslateY);
+        }
+
+        function applyLightboxTransform() {
+            clampLightboxTransform();
+
+            if (lightboxImageScale === LIGHTBOX_MIN_SCALE) {
+                captureLightboxImage.style.removeProperty('transform');
+            } else {
+                captureLightboxImage.style.transform = `translate3d(${lightboxImageTranslateX}px, ${lightboxImageTranslateY}px, 0) scale(${lightboxImageScale})`;
+            }
+
+            captureLightboxImage.classList.toggle('is-zoomed', lightboxImageScale > LIGHTBOX_MIN_SCALE);
+        }
+
+        function resetLightboxTransform() {
+            lightboxPointers.clear();
+            lightboxGesture = null;
+            lightboxImageScale = LIGHTBOX_MIN_SCALE;
+            lightboxImageTranslateX = 0;
+            lightboxImageTranslateY = 0;
+            lightboxLastTapAt = 0;
+            lightboxTapMoved = false;
+            captureLightboxImage.classList.remove('is-panning');
+            applyLightboxTransform();
+        }
+
+        function getLightboxPointerList() {
+            return Array.from(lightboxPointers.values());
+        }
+
+        function getLightboxPointerDistance(first, second) {
+            return Math.hypot(second.x - first.x, second.y - first.y);
+        }
+
+        function getLightboxPointerCenter(first, second) {
+            return {
+                x: (first.x + second.x) / 2,
+                y: (first.y + second.y) / 2
+            };
+        }
+
+        function startLightboxPanGesture(pointer) {
+            lightboxGesture = {
+                type: 'pan',
+                startX: pointer.x,
+                startY: pointer.y,
+                startTranslateX: lightboxImageTranslateX,
+                startTranslateY: lightboxImageTranslateY
+            };
+        }
+
+        function startLightboxPinchGesture() {
+            const pointers = getLightboxPointerList();
+            if (pointers.length < 2) {
+                return;
+            }
+
+            const [first, second] = pointers;
+            const center = getLightboxPointerCenter(first, second);
+            lightboxGesture = {
+                type: 'pinch',
+                startDistance: Math.max(1, getLightboxPointerDistance(first, second)),
+                startScale: lightboxImageScale,
+                startCenterX: center.x,
+                startCenterY: center.y,
+                startTranslateX: lightboxImageTranslateX,
+                startTranslateY: lightboxImageTranslateY
+            };
+        }
+
+        function handleLightboxTap() {
+            const now = Date.now();
+            const isDoubleTap = now - lightboxLastTapAt <= LIGHTBOX_DOUBLE_TAP_MS;
+            lightboxLastTapAt = now;
+
+            if (isDoubleTap && lightboxImageScale > LIGHTBOX_MIN_SCALE) {
+                resetLightboxTransform();
+            }
+        }
+
+        function handleLightboxPointerDown(event) {
+            if (!isLightboxOpen() || (event.pointerType === 'mouse' && event.button !== 0)) {
+                return;
+            }
+
+            event.preventDefault();
+
+            try {
+                captureLightboxImage.setPointerCapture(event.pointerId);
+            } catch (error) {}
+
+            lightboxPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+            if (lightboxPointers.size >= 2) {
+                lightboxTapMoved = true;
+                captureLightboxImage.classList.remove('is-panning');
+                startLightboxPinchGesture();
+            } else {
+                lightboxTapStartAt = Date.now();
+                lightboxTapStartX = event.clientX;
+                lightboxTapStartY = event.clientY;
+                lightboxTapMoved = false;
+                startLightboxPanGesture({ x: event.clientX, y: event.clientY });
+                captureLightboxImage.classList.toggle('is-panning', lightboxImageScale > LIGHTBOX_MIN_SCALE);
+            }
+        }
+
+        function handleLightboxPointerMove(event) {
+            if (!lightboxPointers.has(event.pointerId)) {
+                return;
+            }
+
+            event.preventDefault();
+            lightboxPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+            if (!lightboxTapMoved) {
+                const tapDistance = Math.hypot(event.clientX - lightboxTapStartX, event.clientY - lightboxTapStartY);
+                lightboxTapMoved = tapDistance > LIGHTBOX_TAP_MOVE_TOLERANCE;
+            }
+
+            if (lightboxPointers.size >= 2 && lightboxGesture && lightboxGesture.type === 'pinch') {
+                const [first, second] = getLightboxPointerList();
+                const distance = Math.max(1, getLightboxPointerDistance(first, second));
+                const center = getLightboxPointerCenter(first, second);
+                lightboxImageScale = lightboxGesture.startScale * (distance / lightboxGesture.startDistance);
+                lightboxImageTranslateX = lightboxGesture.startTranslateX + (center.x - lightboxGesture.startCenterX);
+                lightboxImageTranslateY = lightboxGesture.startTranslateY + (center.y - lightboxGesture.startCenterY);
+                applyLightboxTransform();
+                return;
+            }
+
+            if (lightboxGesture && lightboxGesture.type === 'pan' && lightboxImageScale > LIGHTBOX_MIN_SCALE) {
+                const pointer = lightboxPointers.get(event.pointerId);
+                lightboxImageTranslateX = lightboxGesture.startTranslateX + (pointer.x - lightboxGesture.startX);
+                lightboxImageTranslateY = lightboxGesture.startTranslateY + (pointer.y - lightboxGesture.startY);
+                applyLightboxTransform();
+            }
+        }
+
+        function handleLightboxPointerEnd(event) {
+            if (!lightboxPointers.has(event.pointerId)) {
+                return;
+            }
+
+            const pointerCountBeforeEnd = lightboxPointers.size;
+            const tapDuration = Date.now() - lightboxTapStartAt;
+            const isTap = pointerCountBeforeEnd === 1
+                && !lightboxTapMoved
+                && tapDuration <= LIGHTBOX_DOUBLE_TAP_MS;
+
+            try {
+                captureLightboxImage.releasePointerCapture(event.pointerId);
+            } catch (error) {}
+
+            lightboxPointers.delete(event.pointerId);
+            captureLightboxImage.classList.remove('is-panning');
+
+            if (lightboxPointers.size >= 2) {
+                startLightboxPinchGesture();
+            } else if (lightboxPointers.size === 1) {
+                startLightboxPanGesture(getLightboxPointerList()[0]);
+            } else {
+                lightboxGesture = null;
+                applyLightboxTransform();
+            }
+
+            if (isTap) {
+                handleLightboxTap();
+            }
+        }
+
         function openCaptureLightbox(capture) {
             if (!capture || captureState === STATES.CAPTURING) {
                 return;
@@ -1997,12 +2548,14 @@
             lightboxCapture = capture;
             captureLightboxImage.src = capture.objectUrl;
             captureLightboxMeta.textContent = formatCaptureTime(capture.createdAt);
+            resetLightboxTransform();
             captureLightboxPanel.classList.remove('hidden');
             setFullscreenControlVisible(false);
         }
 
         function closeCaptureLightbox() {
             lightboxCapture = null;
+            resetLightboxTransform();
             captureLightboxImage.removeAttribute('src');
             captureLightboxPanel.classList.add('hidden');
         }
@@ -2019,7 +2572,6 @@
                 return;
             }
             const captureId = lightboxCapture.id;
-            closeCaptureLightbox();
             deleteImageFolderCapture(captureId);
         }
 
@@ -2033,9 +2585,9 @@
             const touchEndY = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientY : 0;
             const deltaY = appSwipeStartY - touchEndY;
 
-            if (deltaY > 50 && captureState !== STATES.CAPTURING && !isLightboxOpen() && !imageFolderPanel.classList.contains('is-open') && !settingsPanel.classList.contains('is-open')) {
+            if (deltaY > 50 && captureState !== STATES.CAPTURING && !isLightboxOpen() && !isImageFolderOpen() && !isSettingsOpen()) {
                 openImageFolder();
-            } else if (deltaY < -50 && !isLightboxOpen() && imageFolderPanel.classList.contains('is-open')) {
+            } else if (deltaY < -50 && !isLightboxOpen() && isImageFolderOpen()) {
                 // Determine if we should close the sheet. Allow internal scrolling logic.
                 const sheet = document.getElementById('imageFolderSheet');
                 if (sheet) {
@@ -2064,9 +2616,9 @@
             const touchEndY = e.clientY;
             const deltaY = appSwipeStartY - touchEndY;
 
-            if (deltaY > 50 && captureState !== STATES.CAPTURING && !isLightboxOpen() && !imageFolderPanel.classList.contains('is-open') && !settingsPanel.classList.contains('is-open')) {
+            if (deltaY > 50 && captureState !== STATES.CAPTURING && !isLightboxOpen() && !isImageFolderOpen() && !isSettingsOpen()) {
                 openImageFolder();
-            } else if (deltaY < -50 && !isLightboxOpen() && imageFolderPanel.classList.contains('is-open')) {
+            } else if (deltaY < -50 && !isLightboxOpen() && isImageFolderOpen()) {
                 const sheet = document.getElementById('imageFolderSheet');
                 if (sheet) {
                     const scrollArea = sheet.querySelector('.overflow-y-auto');
@@ -2531,7 +3083,7 @@
                 && !isStarting
                 && startOverlay.classList.contains('hidden')
                 && errorView.classList.contains('hidden')
-                && settingsPanel.classList.contains('hidden')
+                && !isSettingsOpen()
                 && captureLightboxPanel.classList.contains('hidden')
                 && (imageFolderPanel.classList.contains('hidden') || imageFolderPanel.classList.contains('invisible'));
         }
@@ -3141,21 +3693,71 @@
             }
         }
 
-        async function deleteImageFolderCapture(id) {
-            const index = imageFolder.findIndex((capture) => capture.id === id);
-            if (index === -1) {
-                return;
+        function formatJpgCount(count) {
+            return count === 1 ? '1 JPG' : `${count} JPGs`;
+        }
+
+        function formatPhotoCount(count) {
+            return count === 1 ? '1 photo' : `${count} photos`;
+        }
+
+        function confirmSingleImageDelete() {
+            return confirm('Are you sure you want to delete this photo?');
+        }
+
+        async function saveImageFolderCaptures(captures) {
+            for (let i = 0; i < captures.length; i++) {
+                const capture = captures[i];
+                await saveCaptureBlob(capture.blob, capture.fileName);
+                capture.downloaded = true;
+
+                try {
+                    await persistImageFolderRecord(capture);
+                } catch (dbError) {
+                    console.warn('Could not save download state to DB (likely incognito mode):', dbError);
+                }
+
+                // Add slight delay to prevent browsers blocking multiple downloads at once
+                if (i < captures.length - 1) {
+                    await new Promise((resolve) => setTimeout(resolve, 800));
+                }
+            }
+        }
+
+        async function deleteImageFolderCaptures(ids, options = {}) {
+            const idSet = new Set(Array.from(ids || []).filter(Boolean));
+            if (!idSet.size) {
+                return { removedCount: 0, failedCount: 0 };
             }
 
-            const [removedCapture] = imageFolder.splice(index, 1);
-            revokeImageFolderEntry(removedCapture);
-            renderImageFolder();
+            const removedCaptures = [];
+            imageFolder = imageFolder.filter((capture) => {
+                if (idSet.has(capture.id)) {
+                    removedCaptures.push(capture);
+                    return false;
+                }
+                return true;
+            });
 
-            if (lightboxCapture && lightboxCapture.id === id) {
+            if (!removedCaptures.length) {
+                return { removedCount: 0, failedCount: 0 };
+            }
+
+            removedCaptures.forEach((capture) => {
+                imageFolderSelectedIds.delete(capture.id);
+                revokeImageFolderEntry(capture);
+            });
+
+            if (options.exitSelection || !imageFolder.length) {
+                imageFolderSelectionMode = false;
+                imageFolderSelectedIds.clear();
+            }
+
+            if (lightboxCapture && idSet.has(lightboxCapture.id)) {
                 closeCaptureLightbox();
             }
 
-            if (currentCapture && currentCapture.id === id) {
+            if (currentCapture && idSet.has(currentCapture.id)) {
                 currentCapture = null;
 
                 if (captureState === STATES.REVIEW) {
@@ -3172,13 +3774,31 @@
                 syncUi();
             }
 
-            try {
-                await deleteStoredImageFolderRecord(id);
-                showToast('Removed from Folder');
-            } catch (error) {
-                console.warn('Image Folder Delete Error:', error);
-                showToast('Could not update Folder');
+            renderImageFolder();
+
+            const deleteResults = await Promise.allSettled(
+                removedCaptures.map((capture) => deleteStoredImageFolderRecord(capture.id))
+            );
+            const failedCount = deleteResults.filter((result) => result.status === 'rejected').length;
+
+            if (failedCount) {
+                console.warn('Image Folder Delete Error:', deleteResults);
             }
+
+            return { removedCount: removedCaptures.length, failedCount };
+        }
+
+        async function deleteImageFolderCapture(id) {
+            if (!confirmSingleImageDelete()) {
+                return;
+            }
+
+            const result = await deleteImageFolderCaptures([id]);
+            if (!result.removedCount) {
+                return;
+            }
+
+            showToast(result.failedCount ? 'Could not update Folder' : 'Removed from Folder');
         }
 
         async function handleDeleteAllClick() {
@@ -3189,10 +3809,10 @@
             if (!confirm('Are you sure you want to delete all photos?')) {
                 return;
             }
-
-            const db = await openImageFolderDb();
             
             try {
+                const db = await openImageFolderDb();
+
                 // Clear from IDB
                 await new Promise((resolve, reject) => {
                     const transaction = db.transaction(IMAGE_FOLDER_STORE_NAME, 'readwrite');
@@ -3207,6 +3827,8 @@
                 // Clear from memory
                 imageFolder.forEach(revokeImageFolderEntry);
                 imageFolder = [];
+                imageFolderSelectionMode = false;
+                imageFolderSelectedIds.clear();
                 renderImageFolder();
                 closeCaptureLightbox();
 
@@ -3243,27 +3865,10 @@
             setButtonDisabled(downloadAllBtn, true);
 
             try {
-                // Standard browser behavior with a-tags downloading in succession
-                for (let i = 0; i < imageFolder.length; i++) {
-                    const capture = imageFolder[i];
-                    if (capture.downloaded) continue; // optionally skip already downloaded ones?
-                    
-                    await saveCaptureBlob(capture.blob, capture.fileName);
-                    capture.downloaded = true;
-                    
-                    try {
-                        await persistImageFolderRecord(capture);
-                    } catch (dbError) {
-                        console.warn('Could not save download state to DB (likely incognito mode):', dbError);
-                    }
-                    
-                    // Add slight delay to prevent browsers blocking multiple downloads at once
-                    if (i < imageFolder.length - 1) {
-                        await new Promise((resolve) => setTimeout(resolve, 800));
-                    }
-                }
+                const captures = [...imageFolder];
+                await saveImageFolderCaptures(captures);
                 renderImageFolder();
-                showToast('Saved all JPGs');
+                showToast(`Saved ${formatJpgCount(captures.length)}`);
             } catch (error) {
                 if (error.name !== 'AbortError') {
                     console.error('Download All Error:', error);
@@ -3274,8 +3879,72 @@
             }
         }
 
+        async function handleDownloadSelectedClick() {
+            const selectedCaptures = getSelectedImageFolderCaptures();
+            if (!selectedCaptures.length || downloadSelectedBtn.disabled) {
+                return;
+            }
+
+            setButtonDisabled(downloadSelectedBtn, true);
+
+            try {
+                await saveImageFolderCaptures(selectedCaptures);
+                renderImageFolder();
+                showToast(`Saved ${formatJpgCount(selectedCaptures.length)}`);
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error('Download Selected Error:', error);
+                    showToast('Could not download selected');
+                }
+            } finally {
+                syncImageFolderSelectionUi();
+            }
+        }
+
+        async function handleDeleteSelectedClick() {
+            const selectedCaptures = getSelectedImageFolderCaptures();
+            if (!selectedCaptures.length || deleteSelectedBtn.disabled) {
+                return;
+            }
+
+            const selectedCount = selectedCaptures.length;
+            const prompt = selectedCount === 1
+                ? 'Are you sure you want to delete this photo?'
+                : `Are you sure you want to delete ${selectedCount} photos?`;
+
+            if (!confirm(prompt)) {
+                return;
+            }
+
+            setButtonDisabled(deleteSelectedBtn, true);
+
+            try {
+                const result = await deleteImageFolderCaptures(
+                    selectedCaptures.map((capture) => capture.id),
+                    { exitSelection: true }
+                );
+
+                if (result.removedCount) {
+                    showToast(result.failedCount ? 'Could not update Folder' : `Deleted ${formatPhotoCount(result.removedCount)}`);
+                }
+            } catch (error) {
+                console.warn('Image Folder Delete Selected Error:', error);
+                showToast('Could not delete selected');
+            } finally {
+                syncImageFolderSelectionUi();
+            }
+        }
+
         function handleImageFolderClick(event) {
             if (!(event.target instanceof Element)) {
+                return;
+            }
+
+            if (imageFolderSuppressNextClick) {
+                window.clearTimeout(imageFolderSuppressClickTimerId);
+                imageFolderSuppressClickTimerId = 0;
+                imageFolderSuppressNextClick = false;
+                event.preventDefault();
                 return;
             }
 
@@ -3294,7 +3963,9 @@
                 return;
             }
 
-            if (actionTarget.dataset.folderAction === 'review') {
+            if (actionTarget.dataset.folderAction === 'toggle-select') {
+                toggleImageFolderSelection(capture.id);
+            } else if (actionTarget.dataset.folderAction === 'review') {
                 reviewImageFolderCapture(capture);
             } else if (actionTarget.dataset.folderAction === 'save') {
                 saveImageFolderCapture(capture);
@@ -3466,8 +4137,18 @@
         imageFolderBtn.addEventListener('click', openImageFolder);
         imageFolderBackdrop.addEventListener('click', closeImageFolder);
         closeImageFolderBtn.addEventListener('click', closeImageFolder);
+        selectImagesBtn.addEventListener('click', () => setImageFolderSelectionMode(true));
+        selectAllImagesBtn.addEventListener('click', toggleAllImageFolderSelection);
+        downloadSelectedBtn.addEventListener('click', handleDownloadSelectedClick);
+        deleteSelectedBtn.addEventListener('click', handleDeleteSelectedClick);
+        cancelSelectionBtn.addEventListener('click', () => setImageFolderSelectionMode(false));
         deleteAllBtn.addEventListener('click', handleDeleteAllClick);
         downloadAllBtn.addEventListener('click', handleDownloadAllClick);
+        imageFolderGrid.addEventListener('pointerdown', handleImageFolderPointerDown);
+        imageFolderGrid.addEventListener('pointermove', handleImageFolderPointerMove);
+        imageFolderGrid.addEventListener('pointerup', handleImageFolderPointerEnd);
+        imageFolderGrid.addEventListener('pointercancel', handleImageFolderPointerEnd);
+        imageFolderGrid.addEventListener('contextmenu', handleImageFolderContextMenu);
         imageFolderGrid.addEventListener('click', handleImageFolderClick);
         viewport.addEventListener('click', handleViewportTap);
         settingsBtn.addEventListener('click', openSettings);
@@ -3491,6 +4172,11 @@
         captureLightboxCloseBtn.addEventListener('click', closeCaptureLightbox);
         captureLightboxDownloadBtn.addEventListener('click', saveLightboxCapture);
         captureLightboxDeleteBtn.addEventListener('click', deleteLightboxCapture);
+        captureLightboxImage.addEventListener('pointerdown', handleLightboxPointerDown);
+        captureLightboxImage.addEventListener('pointermove', handleLightboxPointerMove);
+        captureLightboxImage.addEventListener('pointerup', handleLightboxPointerEnd);
+        captureLightboxImage.addEventListener('pointercancel', handleLightboxPointerEnd);
+        captureLightboxImage.addEventListener('contextmenu', (event) => event.preventDefault());
         qrSyncHud.addEventListener('click', () => {
             if (!qrSyncPlan) {
                 return;
