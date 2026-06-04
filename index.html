@@ -262,6 +262,13 @@
         .image-folder-action.danger {
             color: rgb(248, 113, 113);
         }
+        .image-folder-action-symbol {
+            font-size: 0.88rem;
+            font-weight: 900;
+            line-height: 1;
+            font-family: Georgia, "Times New Roman", serif;
+            transform: translateY(-0.02rem);
+        }
         .image-folder-action img {
             width: 1rem;
             height: 1rem;
@@ -306,6 +313,170 @@
         #settingsPanel,
         #captureLightboxPanel {
             z-index: 80;
+        }
+        #captureInfoPanel {
+            z-index: 90;
+        }
+        #confirmDialogPanel {
+            z-index: 100;
+        }
+        .confirm-dialog-panel {
+            position: absolute;
+            inset: 0;
+            pointer-events: auto;
+        }
+        .confirm-dialog-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.68);
+        }
+        .confirm-dialog-card {
+            position: absolute;
+            left: max(1rem, env(safe-area-inset-left));
+            right: max(1rem, env(safe-area-inset-right));
+            bottom: max(1rem, env(safe-area-inset-bottom));
+            max-width: 28rem;
+            margin: 0 auto;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 1.25rem;
+            background: rgba(10, 10, 10, 0.96);
+            box-shadow: 0 24px 72px rgba(0, 0, 0, 0.55);
+            padding: 1rem;
+        }
+        .confirm-dialog-title {
+            margin: 0;
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 900;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+        .confirm-dialog-message {
+            margin: 0.65rem 0 1rem;
+            color: rgb(212, 212, 212);
+            font-size: 0.86rem;
+            line-height: 1.45;
+        }
+        .confirm-dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.65rem;
+        }
+        .confirm-dialog-button {
+            min-height: 2.6rem;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 9999px;
+            padding: 0 1rem;
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            font-size: 0.68rem;
+            font-weight: 900;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        .confirm-dialog-button.danger {
+            border-color: rgba(239, 68, 68, 0.28);
+            background: rgba(239, 68, 68, 0.18);
+            color: rgb(248, 113, 113);
+        }
+        .confirm-dialog-button:active {
+            transform: scale(0.96);
+        }
+        .capture-info-panel {
+            position: absolute;
+            inset: 0;
+            pointer-events: auto;
+        }
+        .capture-info-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.72);
+        }
+        .capture-info-card {
+            position: absolute;
+            left: max(1rem, env(safe-area-inset-left));
+            right: max(1rem, env(safe-area-inset-right));
+            bottom: max(1rem, env(safe-area-inset-bottom));
+            max-width: 36rem;
+            max-height: min(78vh, 44rem);
+            margin: 0 auto;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 1.25rem;
+            background: rgba(10, 10, 10, 0.96);
+            box-shadow: 0 24px 72px rgba(0, 0, 0, 0.55);
+        }
+        .capture-info-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem 1rem 0.85rem;
+        }
+        .capture-info-title {
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 900;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+        .capture-info-content {
+            max-height: calc(min(78vh, 44rem) - 4.25rem);
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        .capture-info-section + .capture-info-section {
+            margin-top: 1rem;
+        }
+        .capture-info-section-title {
+            margin: 0 0 0.5rem;
+            color: rgb(245, 245, 245);
+            font-size: 0.65rem;
+            font-weight: 900;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+        .capture-info-row {
+            display: grid;
+            grid-template-columns: minmax(7rem, 0.9fr) minmax(0, 1.4fr);
+            gap: 0.75rem;
+            padding: 0.45rem 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .capture-info-label {
+            color: rgb(115, 115, 115);
+            font-size: 0.68rem;
+            font-weight: 900;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        .capture-info-value {
+            min-width: 0;
+            color: rgb(229, 229, 229);
+            font-size: 0.78rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+        .capture-info-code {
+            width: 100%;
+            max-height: 9rem;
+            overflow: auto;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 0.75rem;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 0.75rem;
+            color: rgb(229, 229, 229);
+            font-size: 0.68rem;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+        @media (max-width: 480px) {
+            .capture-info-row {
+                grid-template-columns: 1fr;
+                gap: 0.15rem;
+            }
         }
         .lightbox-panel {
             position: absolute;
@@ -654,6 +825,10 @@
                             </div>
                             <select id="stackBlendModeSelect" class="mt-3 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none">
                                 <option value="lighten">Brightest</option>
+                                <option value="additive">Additive</option>
+                                <option value="screen">Screen</option>
+                                <option value="darken">Darkest</option>
+                                <option value="motion">Motion</option>
                                 <option value="mean">Mean</option>
                                 <option value="median">Median</option>
                             </select>
@@ -695,9 +870,9 @@
                         <label id="rollingStackWindowField" data-camera-setting class="hidden block rounded-2xl border border-white/5 bg-white/[0.03] p-4">
                             <div class="flex items-center justify-between gap-4">
                                 <span class="text-[11px] font-black uppercase tracking-[0.18em] text-white">Window</span>
-                                <span id="rollingStackWindowValue" class="text-[11px] uppercase tracking-[0.18em] text-neutral-400">25s</span>
+                                <span id="rollingStackWindowValue" class="text-[11px] uppercase tracking-[0.18em] text-neutral-400">22s</span>
                             </div>
-                            <input id="rollingStackWindowSlider" type="range" min="5" max="60" step="1" value="25" class="mt-3 w-full accent-white">
+                            <input id="rollingStackWindowSlider" type="range" min="5" max="60" step="1" value="22" class="mt-3 w-full accent-white">
                         </label>
 
                         <div data-camera-setting class="block rounded-2xl border border-white/5 bg-white/[0.03] p-4">
@@ -813,6 +988,9 @@
                 <div class="lightbox-toolbar">
                     <span id="captureLightboxMeta" class="lightbox-meta">Capture</span>
                     <div class="lightbox-actions">
+                        <button id="captureLightboxInfoBtn" class="image-folder-action" type="button" aria-label="Show capture info">
+                            <span class="image-folder-action-symbol" aria-hidden="true">i</span>
+                        </button>
                         <button id="captureLightboxDownloadBtn" class="image-folder-action" type="button" aria-label="Save capture">
                             <img src="./icons/download.png" alt="" draggable="false">
                         </button>
@@ -828,6 +1006,36 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Capture Info -->
+        <div id="captureInfoPanel" class="hidden capture-info-panel" role="dialog" aria-modal="true" aria-label="Capture info">
+            <button id="captureInfoBackdrop" class="capture-info-backdrop" aria-label="Close capture info"></button>
+            <section class="capture-info-card">
+                <div class="capture-info-header">
+                    <h2 class="capture-info-title">Capture Info</h2>
+                    <button id="captureInfoCloseBtn" class="image-folder-action" type="button" aria-label="Close capture info">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round">
+                            <path d="M6 6l12 12"></path>
+                            <path d="M18 6L6 18"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div id="captureInfoContent" class="capture-info-content"></div>
+            </section>
+        </div>
+
+        <!-- Confirmation Dialog -->
+        <div id="confirmDialogPanel" class="hidden confirm-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="confirmDialogTitle" aria-describedby="confirmDialogMessage">
+            <button id="confirmDialogBackdrop" class="confirm-dialog-backdrop" aria-label="Cancel"></button>
+            <section class="confirm-dialog-card">
+                <h2 id="confirmDialogTitle" class="confirm-dialog-title">Confirm</h2>
+                <p id="confirmDialogMessage" class="confirm-dialog-message">Are you sure?</p>
+                <div class="confirm-dialog-actions">
+                    <button id="confirmDialogCancelBtn" class="confirm-dialog-button" type="button">Cancel</button>
+                    <button id="confirmDialogConfirmBtn" class="confirm-dialog-button danger" type="button">Delete</button>
+                </div>
+            </section>
         </div>
 
     <!-- Controls -->
@@ -1024,9 +1232,20 @@
         const captureLightboxBackdrop = document.getElementById('captureLightboxBackdrop');
         const captureLightboxImage = document.getElementById('captureLightboxImage');
         const captureLightboxMeta = document.getElementById('captureLightboxMeta');
+        const captureLightboxInfoBtn = document.getElementById('captureLightboxInfoBtn');
         const captureLightboxDownloadBtn = document.getElementById('captureLightboxDownloadBtn');
         const captureLightboxDeleteBtn = document.getElementById('captureLightboxDeleteBtn');
         const captureLightboxCloseBtn = document.getElementById('captureLightboxCloseBtn');
+        const captureInfoPanel = document.getElementById('captureInfoPanel');
+        const captureInfoBackdrop = document.getElementById('captureInfoBackdrop');
+        const captureInfoCloseBtn = document.getElementById('captureInfoCloseBtn');
+        const captureInfoContent = document.getElementById('captureInfoContent');
+        const confirmDialogPanel = document.getElementById('confirmDialogPanel');
+        const confirmDialogTitle = document.getElementById('confirmDialogTitle');
+        const confirmDialogMessage = document.getElementById('confirmDialogMessage');
+        const confirmDialogBackdrop = document.getElementById('confirmDialogBackdrop');
+        const confirmDialogCancelBtn = document.getElementById('confirmDialogCancelBtn');
+        const confirmDialogConfirmBtn = document.getElementById('confirmDialogConfirmBtn');
         const cameraFooter = document.getElementById('cameraFooter');
 
         appVersionValue.textContent = `v${APP_VERSION}`;
@@ -1062,7 +1281,12 @@
         let isStarting = false;
         let reviewImageUrl = null;
         let currentCapture = null;
+        let captureStartedAt = 0;
+        let captureMetadataSnapshot = null;
+        let captureStackedFrameCount = 0;
         let lightboxCapture = null;
+        let infoCapture = null;
+        let confirmDialogResolver = null;
         let imageFolderDbPromise = null;
         let imageFolder = [];
         let imageFolderSelectionMode = false;
@@ -1102,6 +1326,7 @@
         const IMAGE_FOLDER_SAVE_STORAGE_KEY = 'time-volume-camera-image-folder-save-enabled';
         const IMAGE_FOLDER_LIMIT_STORAGE_KEY = 'time-volume-camera-image-folder-limit';
         const SHOW_REVIEW_AFTER_CAPTURE_STORAGE_KEY = 'time-volume-camera-show-review-after-capture';
+        const CAPTURE_METADATA_COMMENT_PREFIX = 'VolumetricTimeCameraMetadata:';
         const IMAGE_FOLDER_DEFAULT_LIMIT = 50;
         const IMAGE_FOLDER_MIN_LIMIT = 10;
         const IMAGE_FOLDER_MAX_LIMIT = 200;
@@ -1114,19 +1339,50 @@
                 label: 'Brightest',
                 composite: 'lighten',
                 opacity: 1,
-                processor: 'raw'
+                processor: 'raw',
+                clearColor: 'black'
+            },
+            additive: {
+                label: 'Additive',
+                composite: 'lighter',
+                opacity: 0.18,
+                processor: 'raw',
+                clearColor: 'black'
+            },
+            screen: {
+                label: 'Screen',
+                composite: 'screen',
+                opacity: 0.35,
+                processor: 'raw',
+                clearColor: 'black'
+            },
+            darken: {
+                label: 'Darkest',
+                composite: 'darken',
+                opacity: 1,
+                processor: 'raw',
+                clearColor: 'white'
+            },
+            motion: {
+                label: 'Motion',
+                composite: 'lighten',
+                opacity: 1,
+                processor: 'difference',
+                clearColor: 'black'
             },
             mean: {
                 label: 'Mean',
                 composite: 'source-over',
                 opacity: 1,
-                processor: 'mean'
+                processor: 'mean',
+                clearColor: 'black'
             },
             median: {
                 label: 'Median',
                 composite: 'lighten',
                 opacity: 1,
-                processor: 'median'
+                processor: 'median',
+                clearColor: 'black'
             }
         };
         const ROLLING_STACK_DEFAULT_WINDOW_SECONDS = 25;
@@ -1758,37 +2014,308 @@
             applyQrSyncPayload(payload, window.location.href, 'url');
         }
 
-        function createCaptureRecord(blob) {
-            const createdAt = Date.now();
-            const idSuffix = Math.random().toString(36).slice(2, 8);
+        function getSafeObject(value) {
+            return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+        }
+
+        function getTimestampIso(timestamp) {
+            return Number.isFinite(Number(timestamp)) ? new Date(Number(timestamp)).toISOString() : null;
+        }
+
+        function getCurrentTimezone() {
+            try {
+                return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+            } catch (error) {
+                return '';
+            }
+        }
+
+        function getSelectedCameraLabel() {
+            const selectedDevice = availableVideoDevices.find((device) => device.deviceId === selectedVideoDeviceId);
+            if (selectedDevice && selectedDevice.label) {
+                return selectedDevice.label;
+            }
+
+            if (cameraLensSelect && cameraLensSelect.selectedOptions && cameraLensSelect.selectedOptions.length) {
+                return cameraLensSelect.selectedOptions[0].textContent || '';
+            }
+
+            return '';
+        }
+
+        function snapshotCameraMetadata() {
+            const track = mediaStream && mediaStream.getVideoTracks().length ? mediaStream.getVideoTracks()[0] : null;
+            const settings = track && typeof track.getSettings === 'function' ? track.getSettings() : {};
+            const safeSettings = {};
+            const selectedLabel = getSelectedCameraLabel() || null;
+            const trackLabel = track && track.label ? track.label : null;
+
+            ['width', 'height', 'aspectRatio', 'frameRate', 'facingMode', 'resizeMode'].forEach((key) => {
+                if (settings[key] !== undefined && settings[key] !== null) {
+                    safeSettings[key] = settings[key];
+                }
+            });
 
             return {
-                id: `capture-${createdAt}-${idSuffix}`,
+                selectedLabel,
+                trackLabel: trackLabel && trackLabel !== selectedLabel ? trackLabel : null,
+                settings: safeSettings
+            };
+        }
+
+        function snapshotQrSyncMetadata() {
+            if (!qrSyncPlan) {
+                return null;
+            }
+
+            return {
+                enabled: qrSyncEnabled,
+                action: qrSyncAction,
+                actionLabel: QR_SYNC_ACTIONS[qrSyncAction] || QR_SYNC_ACTIONS.record,
+                sequenceName: qrSyncPlan.sequenceName || null,
+                phase: qrSyncPlan.phase || null,
+                source: qrSyncPlan.source || null,
+                rawValue: qrSyncPlan.rawValue || null,
+                payload: qrSyncPlan.payload || null,
+                receivedAt: qrSyncPlan.receivedAt || null,
+                receivedAtIso: getTimestampIso(qrSyncPlan.receivedAt),
+                startAt: qrSyncPlan.startAt || null,
+                startAtIso: getTimestampIso(qrSyncPlan.startAt),
+                stopAt: qrSyncPlan.stopAt || null,
+                stopAtIso: getTimestampIso(qrSyncPlan.stopAt),
+                durationMs: qrSyncPlan.durationMs || null,
+                direction: qrSyncPlan.direction || 0,
+                upcoming: Array.isArray(qrSyncPlan.upcoming)
+                    ? qrSyncPlan.upcoming.slice(0, 8).map((entry) => ({
+                        sequenceName: entry.sequenceName || null,
+                        startAt: entry.startAt || null,
+                        startAtIso: getTimestampIso(entry.startAt),
+                        stopAt: entry.stopAt || null,
+                        stopAtIso: getTimestampIso(entry.stopAt),
+                        durationMs: entry.durationMs || null,
+                        direction: entry.direction || 0
+                    }))
+                    : []
+            };
+        }
+
+        function createCaptureMetadataSnapshot(startedAt) {
+            const mode = getStackBlendModeConfig();
+            const stack = {
+                modeKey: stackBlendModeKey,
+                modeLabel: mode.label,
+                composite: stackBlendMode,
+                processor: stackFrameProcessor,
+                frameOpacity: stackFrameOpacity,
+                strengthPercent: Math.round(stackFrameOpacity * 100),
+                rollingStackEnabled,
+                rollingStackWindowSeconds
+            };
+
+            if (stackFrameProcessor === 'median') {
+                stack.medianFrameCount = stackMedianFrameCount;
+            }
+
+            return {
+                startedAt,
+                stack,
+                camera: snapshotCameraMetadata(),
+                qr: snapshotQrSyncMetadata()
+            };
+        }
+
+        function buildCaptureMetadata({ id, fileName, createdAt, startedAt, endedAt, blob, targetCanvas, snapshot, stackCounts }) {
+            const metadataSnapshot = snapshot || createCaptureMetadataSnapshot(startedAt || createdAt);
+            const startTime = startedAt || metadataSnapshot.startedAt || createdAt;
+            const endTime = endedAt || createdAt;
+            const stack = {
+                ...(metadataSnapshot.stack || {}),
+                ...(stackCounts || {})
+            };
+
+            if (stack.processor !== 'median') {
+                delete stack.medianFrameCount;
+            }
+
+            return {
+                schema: 'volumetric-time-camera.capture-metadata.v1',
+                app: {
+                    name: 'Volumetric Time Camera',
+                    version: APP_VERSION
+                },
+                capture: {
+                    id,
+                    fileName,
+                    createdAt,
+                    createdAtIso: getTimestampIso(createdAt),
+                    startedAt: startTime,
+                    startedAtIso: getTimestampIso(startTime),
+                    endedAt: endTime,
+                    endedAtIso: getTimestampIso(endTime),
+                    durationMs: Math.max(0, endTime - startTime),
+                    timezone: getCurrentTimezone(),
+                    width: targetCanvas ? targetCanvas.width : null,
+                    height: targetCanvas ? targetCanvas.height : null,
+                    mimeType: blob && blob.type ? blob.type : 'image/jpeg',
+                    embeddedFormat: 'JPEG COM'
+                },
+                stack,
+                camera: metadataSnapshot.camera || null,
+                qr: metadataSnapshot.qr || null
+            };
+        }
+
+        function getCaptureStackCounts() {
+            const framesStacked = rollingStackEnabled ? rollingStackFrames.length : captureStackedFrameCount;
+            const counts = {
+                framesStacked
+            };
+
+            if (rollingStackEnabled) {
+                counts.framesSampled = captureStackedFrameCount;
+            }
+
+            return counts;
+        }
+
+        async function addCaptureMetadataToJpegBlob(blob, metadata) {
+            if (!blob || !blob.type || !/jpe?g/i.test(blob.type) || typeof blob.arrayBuffer !== 'function' || typeof TextEncoder !== 'function') {
+                return blob;
+            }
+
+            try {
+                const sourceBytes = new Uint8Array(await blob.arrayBuffer());
+
+                if (sourceBytes.length < 2 || sourceBytes[0] !== 0xff || sourceBytes[1] !== 0xd8) {
+                    return blob;
+                }
+
+                const metadataText = `${CAPTURE_METADATA_COMMENT_PREFIX}${JSON.stringify(metadata)}`;
+                const metadataBytes = new TextEncoder().encode(metadataText);
+                const maxCommentPayloadLength = 65533;
+                const segments = [];
+
+                for (let offset = 0; offset < metadataBytes.length; offset += maxCommentPayloadLength) {
+                    const payload = metadataBytes.subarray(offset, offset + maxCommentPayloadLength);
+                    const segmentLength = payload.length + 2;
+                    const segment = new Uint8Array(payload.length + 4);
+                    segment[0] = 0xff;
+                    segment[1] = 0xfe;
+                    segment[2] = (segmentLength >> 8) & 0xff;
+                    segment[3] = segmentLength & 0xff;
+                    segment.set(payload, 4);
+                    segments.push(segment);
+                }
+
+                const outputLength = sourceBytes.length + segments.reduce((total, segment) => total + segment.length, 0);
+                const outputBytes = new Uint8Array(outputLength);
+                let writeOffset = 0;
+                outputBytes.set(sourceBytes.subarray(0, 2), writeOffset);
+                writeOffset += 2;
+
+                for (const segment of segments) {
+                    outputBytes.set(segment, writeOffset);
+                    writeOffset += segment.length;
+                }
+
+                outputBytes.set(sourceBytes.subarray(2), writeOffset);
+                return new Blob([outputBytes], { type: blob.type });
+            } catch (error) {
+                console.warn('Could not embed capture metadata:', error);
+                return blob;
+            }
+        }
+
+        async function createCaptureRecordFromCanvas(targetCanvas, options = {}) {
+            const rawBlob = await canvasToBlob(targetCanvas, 'image/jpeg', 0.92);
+            const createdAt = options.endedAt || Date.now();
+            const idSuffix = Math.random().toString(36).slice(2, 8);
+            const id = `capture-${createdAt}-${idSuffix}`;
+            const fileName = `time-volume-${createdAt}.jpg`;
+            const metadata = buildCaptureMetadata({
+                id,
+                fileName,
                 createdAt,
-                fileName: `time-volume-${createdAt}.jpg`,
+                startedAt: options.startedAt || createdAt,
+                endedAt: options.endedAt || createdAt,
+                blob: rawBlob,
+                targetCanvas,
+                snapshot: options.snapshot,
+                stackCounts: options.stackCounts || getCaptureStackCounts()
+            });
+            const blob = await addCaptureMetadataToJpegBlob(rawBlob, metadata);
+            if (blob === rawBlob) {
+                metadata.capture.embeddedFormat = null;
+            }
+
+            return {
+                id,
+                createdAt,
+                fileName,
                 blob,
+                metadata,
                 downloaded: false
             };
         }
 
+        function normalizeCaptureMetadata(record) {
+            const metadata = getSafeObject(record.metadata);
+            const metadataCapture = getSafeObject(metadata.capture);
+            const createdAt = Number(metadataCapture.createdAt || record.createdAt || Date.now());
+            const fileName = metadataCapture.fileName || record.fileName || `time-volume-${createdAt}.jpg`;
+
+            return {
+                schema: metadata.schema || 'volumetric-time-camera.capture-metadata.v1',
+                app: {
+                    name: getSafeObject(metadata.app).name || 'Volumetric Time Camera',
+                    version: getSafeObject(metadata.app).version || APP_VERSION
+                },
+                capture: {
+                    id: metadataCapture.id || record.id || '',
+                    fileName,
+                    createdAt,
+                    createdAtIso: metadataCapture.createdAtIso || getTimestampIso(createdAt),
+                    startedAt: metadataCapture.startedAt || createdAt,
+                    startedAtIso: metadataCapture.startedAtIso || getTimestampIso(metadataCapture.startedAt || createdAt),
+                    endedAt: metadataCapture.endedAt || createdAt,
+                    endedAtIso: metadataCapture.endedAtIso || getTimestampIso(metadataCapture.endedAt || createdAt),
+                    durationMs: Number.isFinite(Number(metadataCapture.durationMs)) ? Number(metadataCapture.durationMs) : null,
+                    timezone: metadataCapture.timezone || '',
+                    width: metadataCapture.width || null,
+                    height: metadataCapture.height || null,
+                    mimeType: metadataCapture.mimeType || (record.blob && record.blob.type) || 'image/jpeg',
+                    embeddedFormat: metadataCapture.embeddedFormat || null
+                },
+                stack: metadata.stack || null,
+                camera: metadata.camera || null,
+                qr: metadata.qr || null
+            };
+        }
+
         function createImageFolderEntry(record) {
+            const metadata = normalizeCaptureMetadata(record);
+
             return {
                 id: record.id,
-                createdAt: record.createdAt,
-                fileName: record.fileName,
+                createdAt: record.createdAt || metadata.capture.createdAt,
+                fileName: record.fileName || metadata.capture.fileName,
                 blob: record.blob,
                 objectUrl: URL.createObjectURL(record.blob),
+                metadata,
                 downloaded: Boolean(record.downloaded),
                 inFolder: true
             };
         }
 
         function createCurrentCaptureEntry(record) {
+            const metadata = normalizeCaptureMetadata(record);
+
             return {
                 id: record.id,
-                createdAt: record.createdAt,
-                fileName: record.fileName,
+                createdAt: record.createdAt || metadata.capture.createdAt,
+                fileName: record.fileName || metadata.capture.fileName,
                 blob: record.blob,
+                metadata,
                 downloaded: Boolean(record.downloaded),
                 inFolder: false
             };
@@ -1800,6 +2327,7 @@
                 createdAt: record.createdAt,
                 fileName: record.fileName,
                 blob: record.blob,
+                metadata: normalizeCaptureMetadata(record),
                 downloaded: Boolean(record.downloaded)
             };
         }
@@ -1994,12 +2522,236 @@
             button.dataset.folderAction = action;
             button.setAttribute('aria-label', label);
 
-            const icon = document.createElement('img');
-            icon.src = iconPath;
-            icon.alt = '';
-            icon.draggable = false;
-            button.appendChild(icon);
+            if (iconPath) {
+                const icon = document.createElement('img');
+                icon.src = iconPath;
+                icon.alt = '';
+                icon.draggable = false;
+                button.appendChild(icon);
+            } else {
+                const symbol = document.createElement('span');
+                symbol.className = 'image-folder-action-symbol';
+                symbol.setAttribute('aria-hidden', 'true');
+                symbol.textContent = 'i';
+                button.appendChild(symbol);
+            }
             return button;
+        }
+
+        function formatInfoTimestamp(timestamp) {
+            if (!Number.isFinite(Number(timestamp))) {
+                return 'Not saved';
+            }
+
+            return new Intl.DateTimeFormat(undefined, {
+                dateStyle: 'medium',
+                timeStyle: 'medium'
+            }).format(new Date(Number(timestamp)));
+        }
+
+        function formatInfoDuration(ms) {
+            if (!Number.isFinite(Number(ms))) {
+                return 'Not saved';
+            }
+
+            const totalSeconds = Math.max(0, Number(ms) / 1000);
+            if (totalSeconds < 10) {
+                return `${totalSeconds.toFixed(1)}s`;
+            }
+            if (totalSeconds < 60) {
+                return `${Math.round(totalSeconds)}s`;
+            }
+
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = Math.round(totalSeconds % 60);
+            return `${minutes}m ${seconds}s`;
+        }
+
+        function formatInfoBytes(bytes) {
+            if (!Number.isFinite(Number(bytes))) {
+                return 'Not saved';
+            }
+
+            const byteCount = Number(bytes);
+            if (byteCount < 1024 * 1024) {
+                return `${Math.max(1, Math.round(byteCount / 1024))} KB`;
+            }
+
+            return `${(byteCount / (1024 * 1024)).toFixed(1)} MB`;
+        }
+
+        function formatInfoValue(value) {
+            if (value === null || value === undefined || value === '') {
+                return 'Not saved';
+            }
+            if (typeof value === 'boolean') {
+                return value ? 'Yes' : 'No';
+            }
+            if (typeof value === 'number') {
+                return Number.isFinite(value) ? String(value) : 'Not saved';
+            }
+            return String(value);
+        }
+
+        function appendCaptureInfoSection(title, rows) {
+            const section = document.createElement('section');
+            section.className = 'capture-info-section';
+
+            const heading = document.createElement('h3');
+            heading.className = 'capture-info-section-title';
+            heading.textContent = title;
+            section.appendChild(heading);
+
+            rows.forEach(([label, value]) => {
+                const row = document.createElement('div');
+                row.className = 'capture-info-row';
+
+                const rowLabel = document.createElement('div');
+                rowLabel.className = 'capture-info-label';
+                rowLabel.textContent = label;
+
+                const rowValue = document.createElement('div');
+                rowValue.className = 'capture-info-value';
+                rowValue.textContent = formatInfoValue(value);
+
+                row.appendChild(rowLabel);
+                row.appendChild(rowValue);
+                section.appendChild(row);
+            });
+
+            captureInfoContent.appendChild(section);
+            return section;
+        }
+
+        function appendCaptureInfoCodeBlock(title, value) {
+            if (!value) {
+                return;
+            }
+
+            const section = document.createElement('section');
+            section.className = 'capture-info-section';
+
+            const heading = document.createElement('h3');
+            heading.className = 'capture-info-section-title';
+            heading.textContent = title;
+
+            const code = document.createElement('pre');
+            code.className = 'capture-info-code';
+            code.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+
+            section.appendChild(heading);
+            section.appendChild(code);
+            captureInfoContent.appendChild(section);
+        }
+
+        function renderCaptureInfo(capture) {
+            if (!capture) {
+                return;
+            }
+
+            const metadata = normalizeCaptureMetadata(capture);
+            const captureMeta = metadata.capture;
+            const stackMeta = metadata.stack || {};
+            const cameraMeta = metadata.camera || {};
+            const cameraSettings = cameraMeta.settings || {};
+            const qrMeta = metadata.qr;
+            const resolution = captureMeta.width && captureMeta.height
+                ? `${captureMeta.width} x ${captureMeta.height}`
+                : 'Not saved';
+            const cameraResolution = cameraSettings.width && cameraSettings.height
+                ? `${cameraSettings.width} x ${cameraSettings.height}`
+                : 'Not saved';
+            const rollingStackText = stackMeta.rollingStackEnabled
+                ? `On (${stackMeta.rollingStackWindowSeconds || ROLLING_STACK_DEFAULT_WINDOW_SECONDS}s)`
+                : (stackMeta.rollingStackEnabled === false ? 'Off' : 'Not saved');
+            const stackingRows = [
+                ['Mode', stackMeta.modeLabel],
+                ['Frames Stacked', stackMeta.framesStacked],
+                ['Strength', Number.isFinite(Number(stackMeta.strengthPercent)) ? `${stackMeta.strengthPercent}%` : null],
+                ['Rolling Stack', rollingStackText]
+            ];
+            const cameraRows = [
+                ['Lens', cameraMeta.selectedLabel || cameraMeta.trackLabel],
+                ['Facing', cameraSettings.facingMode],
+                ['Camera Size', cameraResolution],
+                ['Frame Rate', cameraSettings.frameRate ? `${cameraSettings.frameRate} fps` : null]
+            ];
+
+            if (stackMeta.framesSampled && stackMeta.framesSampled !== stackMeta.framesStacked) {
+                stackingRows.push(['Frames Sampled', stackMeta.framesSampled]);
+            }
+
+            if (stackMeta.processor === 'median' || stackMeta.modeKey === 'median') {
+                stackingRows.push(['Median Frames', stackMeta.medianFrameCount]);
+            }
+
+            if (cameraMeta.trackLabel && cameraMeta.trackLabel !== (cameraMeta.selectedLabel || '')) {
+                cameraRows.splice(1, 0, ['Track Label', cameraMeta.trackLabel]);
+            }
+
+            if (cameraSettings.resizeMode) {
+                cameraRows.push(['Resize Mode', cameraSettings.resizeMode]);
+            }
+
+            captureInfoContent.replaceChildren();
+
+            appendCaptureInfoSection('Capture', [
+                ['Date', formatInfoTimestamp(captureMeta.createdAt)],
+                ['Started', formatInfoTimestamp(captureMeta.startedAt)],
+                ['Duration', formatInfoDuration(captureMeta.durationMs)],
+                ['File', capture.fileName || captureMeta.fileName],
+                ['Size', formatInfoBytes(capture.blob && capture.blob.size)],
+                ['Resolution', resolution],
+                ['Timezone', captureMeta.timezone],
+                ['Embedded', captureMeta.embeddedFormat]
+            ]);
+
+            appendCaptureInfoSection('Stacking', stackingRows);
+
+            appendCaptureInfoSection('Camera', cameraRows);
+
+            if (qrMeta) {
+                appendCaptureInfoSection('QR Sync', [
+                    ['Sequence', qrMeta.sequenceName],
+                    ['Action', qrMeta.actionLabel],
+                    ['Phase', qrMeta.phase],
+                    ['Source', qrMeta.source],
+                    ['Received', formatInfoTimestamp(qrMeta.receivedAt)],
+                    ['Start', formatInfoTimestamp(qrMeta.startAt)],
+                    ['Stop', formatInfoTimestamp(qrMeta.stopAt)],
+                    ['Duration', formatInfoDuration(qrMeta.durationMs)],
+                    ['Direction', qrMeta.direction]
+                ]);
+                appendCaptureInfoCodeBlock('QR Raw', qrMeta.rawValue);
+                appendCaptureInfoCodeBlock('QR Payload', qrMeta.payload);
+            } else {
+                appendCaptureInfoSection('QR Sync', [
+                    ['QR code', 'Not saved']
+                ]);
+            }
+
+            appendCaptureInfoSection('App', [
+                ['Name', metadata.app.name],
+                ['Version', metadata.app.version],
+                ['Schema', metadata.schema]
+            ]);
+        }
+
+        function openCaptureInfo(capture) {
+            if (!capture || captureState === STATES.CAPTURING) {
+                return;
+            }
+
+            infoCapture = capture;
+            renderCaptureInfo(capture);
+            captureInfoPanel.classList.remove('hidden');
+            setFullscreenControlVisible(false);
+        }
+
+        function closeCaptureInfo() {
+            infoCapture = null;
+            captureInfoPanel.classList.add('hidden');
+            captureInfoContent.replaceChildren();
         }
 
         function updateImageFolderButtonPreview() {
@@ -2256,6 +3008,7 @@
                 actions.className = 'image-folder-actions';
 
                 if (!imageFolderSelectionMode) {
+                    actions.appendChild(createFolderActionButton('info', 'Show capture info'));
                     const saveBtn = createFolderActionButton('save', 'Save capture', './icons/download.png');
                     if (capture.downloaded) {
                         saveBtn.classList.add('opacity-40');
@@ -2335,6 +3088,7 @@
         }
 
         function closeImageFolder() {
+            closeCaptureInfo();
             closeCaptureLightbox();
             if (imageFolderSelectionMode) {
                 setImageFolderSelectionMode(false);
@@ -2555,9 +3309,17 @@
 
         function closeCaptureLightbox() {
             lightboxCapture = null;
+            closeCaptureInfo();
             resetLightboxTransform();
             captureLightboxImage.removeAttribute('src');
             captureLightboxPanel.classList.add('hidden');
+        }
+
+        function showLightboxCaptureInfo() {
+            if (!lightboxCapture) {
+                return;
+            }
+            openCaptureInfo(lightboxCapture);
         }
 
         function saveLightboxCapture() {
@@ -2634,9 +3396,18 @@
         }, { passive: true });
 
         document.addEventListener('pointercancel', () => { appSwipeStartY = 0; }, { passive: true });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !confirmDialogPanel.classList.contains('hidden')) {
+                closeConfirmDialog(false);
+            }
+        });
 
         function isQrSyncAutoRecordMode() {
             return qrSyncEnabled && qrSyncAction === 'record';
+        }
+
+        function getStackBlendModeConfig() {
+            return STACK_BLEND_MODES[stackBlendModeKey] || STACK_BLEND_MODES.lighten;
         }
 
         function enforceRollingStackAvailability() {
@@ -2654,7 +3425,7 @@
 
         function syncStackSettingsUi() {
             const rollingStackLocked = enforceRollingStackAvailability();
-            const mode = STACK_BLEND_MODES[stackBlendModeKey] || STACK_BLEND_MODES.lighten;
+            const mode = getStackBlendModeConfig();
             stackBlendModeSelect.value = stackBlendModeKey;
             stackBlendModeValue.textContent = mode.label;
             stackOpacitySlider.value = String(Math.round(stackFrameOpacity * 100));
@@ -2718,7 +3489,7 @@
 
             rollingCompositeCtx.globalCompositeOperation = 'source-over';
             rollingCompositeCtx.globalAlpha = 1;
-            rollingCompositeCtx.fillStyle = 'black';
+            rollingCompositeCtx.fillStyle = getStackBlendModeConfig().clearColor || 'black';
             rollingCompositeCtx.fillRect(0, 0, rollingCompositeCanvas.width, rollingCompositeCanvas.height);
         }
 
@@ -2824,6 +3595,7 @@
                 });
             }
 
+            captureStackedFrameCount += 1;
             rollingStackNeedsComposite = true;
             return true;
         }
@@ -2911,6 +3683,27 @@
             return output;
         }
 
+        function buildMotionDifferenceFrame(currentPixels) {
+            const previousPixels = stackFrameHistory.length ? stackFrameHistory[stackFrameHistory.length - 1] : null;
+
+            if (!previousPixels) {
+                return null;
+            }
+
+            const output = blendCtx.createImageData(bufferCanvas.width, bufferCanvas.height);
+            const outputPixels = output.data;
+            const motionGain = 3;
+
+            for (let index = 0; index < currentPixels.length; index += 4) {
+                outputPixels[index] = Math.min(255, Math.abs(currentPixels[index] - previousPixels[index]) * motionGain);
+                outputPixels[index + 1] = Math.min(255, Math.abs(currentPixels[index + 1] - previousPixels[index + 1]) * motionGain);
+                outputPixels[index + 2] = Math.min(255, Math.abs(currentPixels[index + 2] - previousPixels[index + 2]) * motionGain);
+                outputPixels[index + 3] = 255;
+            }
+
+            return output;
+        }
+
         function buildMeanFrame(currentPixels) {
             const pixelCount = currentPixels.length / 4;
 
@@ -2977,20 +3770,32 @@
 
             const currentFrame = bufferCtx.getImageData(0, 0, bufferCanvas.width, bufferCanvas.height);
             const currentPixels = currentFrame.data;
-            const processedFrame = stackFrameProcessor === 'median'
-                ? buildMedianFrame(currentPixels)
-                : buildMeanFrame(currentPixels);
+            let processedFrame = null;
+
+            if (stackFrameProcessor === 'median') {
+                processedFrame = buildMedianFrame(currentPixels);
+            } else if (stackFrameProcessor === 'difference') {
+                processedFrame = buildMotionDifferenceFrame(currentPixels);
+            } else {
+                processedFrame = buildMeanFrame(currentPixels);
+            }
 
             if (processedFrame) {
                 blendCtx.putImageData(processedFrame, 0, 0);
+            } else if (stackFrameProcessor === 'difference') {
+                blendCtx.globalCompositeOperation = 'source-over';
+                blendCtx.globalAlpha = 1;
+                blendCtx.fillStyle = 'black';
+                blendCtx.fillRect(0, 0, blendCanvas.width, blendCanvas.height);
             } else {
                 blendCtx.putImageData(currentFrame, 0, 0);
             }
 
-            if (stackFrameProcessor === 'median') {
+            if (stackFrameProcessor === 'median' || stackFrameProcessor === 'difference') {
                 stackFrameHistory.push(copyFramePixels(currentPixels));
+                const maxFrameHistoryLength = stackFrameProcessor === 'median' ? stackMedianFrameCount : 1;
 
-                while (stackFrameHistory.length > stackMedianFrameCount) {
+                while (stackFrameHistory.length > maxFrameHistoryLength) {
                     stackFrameHistory.shift();
                 }
             }
@@ -3216,10 +4021,13 @@
 
             ctx.globalCompositeOperation = 'source-over';
             ctx.globalAlpha = 1;
-            ctx.fillStyle = 'black';
+            ctx.fillStyle = getStackBlendModeConfig().clearColor || 'black';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             resetStackFrameHistory();
             resetRollingStackFrames();
+            if (captureState === STATES.CAPTURING) {
+                captureStackedFrameCount = 0;
+            }
         }
 
         function handleVideoResize() {
@@ -3469,6 +4277,7 @@
                     ctx.globalAlpha = frameOpacity;
                     ctx.drawImage(stackFrameSource, 0, 0, canvas.width, canvas.height);
                     ctx.globalAlpha = 1;
+                    captureStackedFrameCount += 1;
                 }
             }
         }
@@ -3572,6 +4381,9 @@
                 return;
             }
 
+            captureStartedAt = Date.now();
+            captureMetadataSnapshot = createCaptureMetadataSnapshot(captureStartedAt);
+            captureStackedFrameCount = 0;
             clearCompositeCanvas();
             setState(STATES.CAPTURING);
         }
@@ -3584,8 +4396,13 @@
             setState(STATES.REVIEW);
 
             try {
-                const blob = await canvasToBlob(canvas, 'image/jpeg', 0.92);
-                const captureRecord = createCaptureRecord(blob);
+                const endedAt = Date.now();
+                const captureRecord = await createCaptureRecordFromCanvas(canvas, {
+                    startedAt: captureStartedAt || endedAt,
+                    endedAt,
+                    snapshot: captureMetadataSnapshot || createCaptureMetadataSnapshot(captureStartedAt || endedAt),
+                    stackCounts: getCaptureStackCounts()
+                });
                 if (imageFolderSaveEnabled) {
                     const result = await addCaptureToImageFolder(captureRecord);
                     currentCapture = result.entry;
@@ -3597,7 +4414,7 @@
                     showToast('Capture ready');
                 }
                 if (showReviewAfterCapture) {
-                    showReviewImage(blob);
+                    showReviewImage(captureRecord.blob);
                     syncUi();
                 } else {
                     clearReviewImage();
@@ -3614,6 +4431,10 @@
                 if (mediaStream) {
                     setState(STATES.PREVIEW);
                 }
+            } finally {
+                captureStartedAt = 0;
+                captureMetadataSnapshot = null;
+                captureStackedFrameCount = 0;
             }
         }
 
@@ -3622,6 +4443,7 @@
                 return;
             }
 
+            closeCaptureInfo();
             clearReviewImage();
             currentCapture = null;
 
@@ -3701,8 +4523,46 @@
             return count === 1 ? '1 photo' : `${count} photos`;
         }
 
+        function closeConfirmDialog(confirmed = false) {
+            if (!confirmDialogResolver) {
+                confirmDialogPanel.classList.add('hidden');
+                return;
+            }
+
+            const resolver = confirmDialogResolver;
+            confirmDialogResolver = null;
+            confirmDialogPanel.classList.add('hidden');
+            resolver(Boolean(confirmed));
+        }
+
+        function showConfirmDialog(options = {}) {
+            if (confirmDialogResolver) {
+                closeConfirmDialog(false);
+            }
+
+            confirmDialogTitle.textContent = options.title || 'Confirm';
+            confirmDialogMessage.textContent = options.message || 'Are you sure?';
+            confirmDialogConfirmBtn.textContent = options.confirmLabel || 'Delete';
+            confirmDialogConfirmBtn.classList.toggle('danger', options.danger !== false);
+            confirmDialogPanel.classList.remove('hidden');
+            setFullscreenControlVisible(false);
+
+            return new Promise((resolve) => {
+                confirmDialogResolver = resolve;
+                window.setTimeout(() => {
+                    try {
+                        confirmDialogCancelBtn.focus({ preventScroll: true });
+                    } catch (error) {}
+                }, 0);
+            });
+        }
+
         function confirmSingleImageDelete() {
-            return confirm('Are you sure you want to delete this photo?');
+            return showConfirmDialog({
+                title: 'Delete Photo',
+                message: 'Are you sure you want to delete this photo?',
+                confirmLabel: 'Delete'
+            });
         }
 
         async function saveImageFolderCaptures(captures) {
@@ -3757,6 +4617,10 @@
                 closeCaptureLightbox();
             }
 
+            if (infoCapture && idSet.has(infoCapture.id)) {
+                closeCaptureInfo();
+            }
+
             if (currentCapture && idSet.has(currentCapture.id)) {
                 currentCapture = null;
 
@@ -3789,7 +4653,7 @@
         }
 
         async function deleteImageFolderCapture(id) {
-            if (!confirmSingleImageDelete()) {
+            if (!(await confirmSingleImageDelete())) {
                 return;
             }
 
@@ -3806,7 +4670,11 @@
                 return;
             }
 
-            if (!confirm('Are you sure you want to delete all photos?')) {
+            if (!(await showConfirmDialog({
+                title: 'Delete All',
+                message: 'Are you sure you want to delete all photos?',
+                confirmLabel: 'Delete All'
+            }))) {
                 return;
             }
             
@@ -3830,6 +4698,7 @@
                 imageFolderSelectionMode = false;
                 imageFolderSelectedIds.clear();
                 renderImageFolder();
+                closeCaptureInfo();
                 closeCaptureLightbox();
 
                 // Clear current capture state if needed
@@ -3912,7 +4781,11 @@
                 ? 'Are you sure you want to delete this photo?'
                 : `Are you sure you want to delete ${selectedCount} photos?`;
 
-            if (!confirm(prompt)) {
+            if (!(await showConfirmDialog({
+                title: selectedCount === 1 ? 'Delete Photo' : 'Delete Photos',
+                message: prompt,
+                confirmLabel: 'Delete'
+            }))) {
                 return;
             }
 
@@ -3967,6 +4840,8 @@
                 toggleImageFolderSelection(capture.id);
             } else if (actionTarget.dataset.folderAction === 'review') {
                 reviewImageFolderCapture(capture);
+            } else if (actionTarget.dataset.folderAction === 'info') {
+                openCaptureInfo(capture);
             } else if (actionTarget.dataset.folderAction === 'save') {
                 saveImageFolderCapture(capture);
             } else if (actionTarget.dataset.folderAction === 'delete') {
@@ -3982,9 +4857,11 @@
             setButtonDisabled(saveBtn, true);
 
             try {
-                const blob = currentCapture ? currentCapture.blob : await canvasToBlob(canvas, 'image/jpeg', 0.92);
-                const fileName = currentCapture ? currentCapture.fileName : `time-volume-${Date.now()}.jpg`;
-                await saveCaptureBlob(blob, fileName);
+                const captureToSave = currentCapture || await createCaptureRecordFromCanvas(canvas, {
+                    startedAt: Date.now(),
+                    endedAt: Date.now()
+                });
+                await saveCaptureBlob(captureToSave.blob, captureToSave.fileName);
                 
                 if (currentCapture) {
                     currentCapture.downloaded = true;
@@ -4042,8 +4919,10 @@
         }
 
         function teardownCamera() {
+            closeConfirmDialog(false);
             closeSettings();
             closeImageFolder();
+            closeCaptureInfo();
             closeCaptureLightbox();
             clearReviewImage();
             stopQrSyncScan();
@@ -4170,6 +5049,7 @@
         showReviewAfterCaptureInput.addEventListener('change', handleShowReviewAfterCaptureChange);
         captureLightboxBackdrop.addEventListener('click', closeCaptureLightbox);
         captureLightboxCloseBtn.addEventListener('click', closeCaptureLightbox);
+        captureLightboxInfoBtn.addEventListener('click', showLightboxCaptureInfo);
         captureLightboxDownloadBtn.addEventListener('click', saveLightboxCapture);
         captureLightboxDeleteBtn.addEventListener('click', deleteLightboxCapture);
         captureLightboxImage.addEventListener('pointerdown', handleLightboxPointerDown);
@@ -4177,6 +5057,11 @@
         captureLightboxImage.addEventListener('pointerup', handleLightboxPointerEnd);
         captureLightboxImage.addEventListener('pointercancel', handleLightboxPointerEnd);
         captureLightboxImage.addEventListener('contextmenu', (event) => event.preventDefault());
+        captureInfoBackdrop.addEventListener('click', closeCaptureInfo);
+        captureInfoCloseBtn.addEventListener('click', closeCaptureInfo);
+        confirmDialogBackdrop.addEventListener('click', () => closeConfirmDialog(false));
+        confirmDialogCancelBtn.addEventListener('click', () => closeConfirmDialog(false));
+        confirmDialogConfirmBtn.addEventListener('click', () => closeConfirmDialog(true));
         qrSyncHud.addEventListener('click', () => {
             if (!qrSyncPlan) {
                 return;
