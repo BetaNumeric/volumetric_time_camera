@@ -498,11 +498,21 @@
             gap: 1rem;
             overflow: hidden;
         }
+        .lightbox-stage {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            min-height: 0;
+            flex: 1 1 auto;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+        }
         .lightbox-image {
             position: relative;
             z-index: 1;
             max-width: 100%;
-            max-height: calc(100% - 4.5rem);
+            max-height: 100%;
             width: auto;
             height: auto;
             object-fit: contain;
@@ -514,6 +524,21 @@
             will-change: transform;
             cursor: zoom-in;
             -webkit-user-drag: none;
+        }
+        .lightbox-adjacent-image {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            margin: auto;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .lightbox-adjacent-image.is-visible {
+            opacity: 1;
+        }
+        .lightbox-image.is-swipe-animating,
+        .lightbox-adjacent-image.is-swipe-animating {
+            transition: transform 220ms cubic-bezier(0.22, 0.9, 0.25, 1), opacity 220ms ease;
         }
         .lightbox-image.is-zoomed {
             cursor: grab;
@@ -545,6 +570,10 @@
         }
         .lightbox-nav:disabled {
             opacity: 0.26;
+            pointer-events: none;
+        }
+        .lightbox-panel:not(.is-navigation-visible) .lightbox-nav {
+            opacity: 0;
             pointer-events: none;
         }
         .lightbox-nav:active:not(:disabled) {
@@ -1017,17 +1046,20 @@
         <div id="captureLightboxPanel" class="hidden lightbox-panel" role="dialog" aria-modal="true" aria-label="Capture preview">
             <button id="captureLightboxBackdrop" class="lightbox-backdrop" aria-label="Close capture preview"></button>
             <div class="lightbox-content">
-                <img id="captureLightboxImage" class="lightbox-image" alt="Saved capture" draggable="false">
-                <button id="captureLightboxPrevBtn" class="lightbox-nav previous hidden" type="button" aria-label="Previous capture">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M15 18l-6-6 6-6"></path>
-                    </svg>
-                </button>
-                <button id="captureLightboxNextBtn" class="lightbox-nav next hidden" type="button" aria-label="Next capture">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M9 6l6 6-6 6"></path>
-                    </svg>
-                </button>
+                <div id="captureLightboxStage" class="lightbox-stage">
+                    <img id="captureLightboxImage" class="lightbox-image" alt="Saved capture" draggable="false">
+                    <img id="captureLightboxAdjacentImage" class="lightbox-image lightbox-adjacent-image hidden" alt="" aria-hidden="true" draggable="false">
+                    <button id="captureLightboxPrevBtn" class="lightbox-nav previous hidden" type="button" aria-label="Previous capture">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M15 18l-6-6 6-6"></path>
+                        </svg>
+                    </button>
+                    <button id="captureLightboxNextBtn" class="lightbox-nav next hidden" type="button" aria-label="Next capture">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M9 6l6 6-6 6"></path>
+                        </svg>
+                    </button>
+                </div>
                 <div class="lightbox-toolbar">
                     <span id="captureLightboxMeta" class="lightbox-meta">Capture</span>
                     <div class="lightbox-actions">
@@ -1114,7 +1146,7 @@
     <canvas id="blendCanvas" style="display:none;"></canvas>
 
     <div id="cameraFooter" class="absolute bottom-4 text-[9px] text-neutral-700 uppercase tracking-[0.4em] w-full text-center pointer-events-none font-bold">
-        Luminous Sculpture Interface v1.7
+        Volumetric Time Camera v1.7
     </div>
 </div>
 
@@ -1273,7 +1305,9 @@
         const showReviewAfterCaptureValue = document.getElementById('showReviewAfterCaptureValue');
         const captureLightboxPanel = document.getElementById('captureLightboxPanel');
         const captureLightboxBackdrop = document.getElementById('captureLightboxBackdrop');
+        const captureLightboxStage = document.getElementById('captureLightboxStage');
         const captureLightboxImage = document.getElementById('captureLightboxImage');
+        const captureLightboxAdjacentImage = document.getElementById('captureLightboxAdjacentImage');
         const captureLightboxPrevBtn = document.getElementById('captureLightboxPrevBtn');
         const captureLightboxNextBtn = document.getElementById('captureLightboxNextBtn');
         const captureLightboxMeta = document.getElementById('captureLightboxMeta');
@@ -1294,7 +1328,7 @@
         const cameraFooter = document.getElementById('cameraFooter');
 
         appVersionValue.textContent = `v${APP_VERSION}`;
-        cameraFooter.textContent = `Luminous Sculpture Interface v${APP_VERSION}`;
+        cameraFooter.textContent = `Volumetric Time Camera v${APP_VERSION}`;
 
         const cameraProfiles = [
             {
@@ -1364,18 +1398,29 @@
         let lightboxTapMoved = false;
         let lightboxSwipeStartX = 0;
         let lightboxSwipeStartY = 0;
+        let lightboxNavigationHideTimerId = 0;
+        let lightboxSwipeOffsetX = 0;
+        let lightboxSwipeDirection = 0;
+        let lightboxSwipeAdjacentCapture = null;
+        let lightboxSwipeIsDragging = false;
+        let lightboxSwipeAnimationTimerId = 0;
         const LIGHTBOX_DOUBLE_TAP_MS = 320;
         const LIGHTBOX_TAP_MOVE_TOLERANCE = 12;
+        const LIGHTBOX_SWIPE_START_THRESHOLD = 10;
         const LIGHTBOX_SWIPE_MIN_DISTANCE = 58;
         const LIGHTBOX_SWIPE_DIRECTION_RATIO = 1.35;
+        const LIGHTBOX_SWIPE_COMMIT_RATIO = 0.22;
+        const LIGHTBOX_SWIPE_EDGE_RESISTANCE = 0.28;
+        const LIGHTBOX_SWIPE_ANIMATION_MS = 220;
         const LIGHTBOX_CLOSE_PINCH_SCALE = 0.72;
+        const LIGHTBOX_NAVIGATION_VISIBLE_MS = 3200;
         const supportsCaptureSharing = typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && typeof File === 'function';
-        const IMAGE_FOLDER_DB_NAME = 'time-volume-camera-image-folder';
+        const IMAGE_FOLDER_DB_NAME = 'volumetric-time-camera-image-folder';
         const IMAGE_FOLDER_DB_VERSION = 1;
         const IMAGE_FOLDER_STORE_NAME = 'captures';
-        const IMAGE_FOLDER_SAVE_STORAGE_KEY = 'time-volume-camera-image-folder-save-enabled';
-        const IMAGE_FOLDER_LIMIT_STORAGE_KEY = 'time-volume-camera-image-folder-limit';
-        const SHOW_REVIEW_AFTER_CAPTURE_STORAGE_KEY = 'time-volume-camera-show-review-after-capture';
+        const IMAGE_FOLDER_SAVE_STORAGE_KEY = 'volumetric-time-camera-image-folder-save-enabled';
+        const IMAGE_FOLDER_LIMIT_STORAGE_KEY = 'volumetric-time-camera-image-folder-limit';
+        const SHOW_REVIEW_AFTER_CAPTURE_STORAGE_KEY = 'volumetric-time-camera-show-review-after-capture';
         const CAPTURE_METADATA_COMMENT_PREFIX = 'VolumetricTimeCameraMetadata:';
         const IMAGE_FOLDER_DEFAULT_LIMIT = 50;
         const IMAGE_FOLDER_MIN_LIMIT = 10;
@@ -1439,8 +1484,8 @@
         const ROLLING_STACK_MAX_EDGE = 720;
         const ROLLING_STACK_TARGET_SAMPLES = 120;
         const ROLLING_STACK_MIN_SAMPLE_INTERVAL_MS = 125;
-        const QR_SYNC_STORAGE_KEY = 'time-volume-camera-qr-sync-enabled';
-        const QR_SYNC_ACTION_STORAGE_KEY = 'time-volume-camera-qr-sync-action';
+        const QR_SYNC_STORAGE_KEY = 'volumetric-time-camera-qr-sync-enabled';
+        const QR_SYNC_ACTION_STORAGE_KEY = 'volumetric-time-camera-qr-sync-action';
         const QR_SYNC_PARAM = 'tvs';
         const QR_SYNC_SCAN_INTERVAL_MS = 350;
         const QR_SYNC_ACTIONS = {
@@ -2281,7 +2326,7 @@
             const createdAt = options.endedAt || Date.now();
             const idSuffix = Math.random().toString(36).slice(2, 8);
             const id = `capture-${createdAt}-${idSuffix}`;
-            const fileName = `time-volume-${createdAt}.jpg`;
+            const fileName = `volumetric-time-${createdAt}.jpg`;
             const metadata = buildCaptureMetadata({
                 id,
                 fileName,
@@ -2312,7 +2357,7 @@
             const metadata = getSafeObject(record.metadata);
             const metadataCapture = getSafeObject(metadata.capture);
             const createdAt = Number(metadataCapture.createdAt || record.createdAt || Date.now());
-            const fileName = metadataCapture.fileName || record.fileName || `time-volume-${createdAt}.jpg`;
+            const fileName = metadataCapture.fileName || record.fileName || `volumetric-time-${createdAt}.jpg`;
 
             return {
                 schema: metadata.schema || 'volumetric-time-camera.capture-metadata.v1',
@@ -3165,6 +3210,26 @@
             return `${formatCaptureTime(capture.createdAt)}${positionText}`;
         }
 
+        function setLightboxNavigationVisible(isVisible, options = {}) {
+            window.clearTimeout(lightboxNavigationHideTimerId);
+            lightboxNavigationHideTimerId = 0;
+
+            const hasMultipleCaptures = imageFolder.length > 1 && getLightboxCaptureIndex() >= 0;
+            const shouldShow = Boolean(isVisible && hasMultipleCaptures);
+            captureLightboxPanel.classList.toggle('is-navigation-visible', shouldShow);
+
+            if (shouldShow && options.autoHide !== false) {
+                lightboxNavigationHideTimerId = window.setTimeout(() => {
+                    setLightboxNavigationVisible(false, { autoHide: false });
+                }, LIGHTBOX_NAVIGATION_VISIBLE_MS);
+            }
+        }
+
+        function toggleLightboxNavigation() {
+            const isVisible = captureLightboxPanel.classList.contains('is-navigation-visible');
+            setLightboxNavigationVisible(!isVisible);
+        }
+
         function syncLightboxNavigationUi() {
             const index = getLightboxCaptureIndex();
             const hasMultipleCaptures = imageFolder.length > 1 && index >= 0;
@@ -3177,6 +3242,10 @@
             captureLightboxNextBtn.disabled = !canGoNext;
             captureLightboxPrevBtn.setAttribute('aria-disabled', String(!canGoPrevious));
             captureLightboxNextBtn.setAttribute('aria-disabled', String(!canGoNext));
+
+            if (!hasMultipleCaptures) {
+                setLightboxNavigationVisible(false, { autoHide: false });
+            }
         }
 
         function setLightboxCapture(capture) {
@@ -3204,7 +3273,147 @@
                 return false;
             }
 
-            return setLightboxCapture(imageFolder[nextIndex]);
+            const didNavigate = setLightboxCapture(imageFolder[nextIndex]);
+            if (didNavigate) {
+                setLightboxNavigationVisible(true);
+            }
+            return didNavigate;
+        }
+
+        function getLightboxStageWidth() {
+            return Math.max(1, captureLightboxStage.clientWidth || captureLightboxPanel.clientWidth || window.innerWidth || 1);
+        }
+
+        function getLightboxAdjacentCapture(direction) {
+            const index = getLightboxCaptureIndex();
+            if (index < 0 || !direction) {
+                return null;
+            }
+
+            const nextIndex = index + direction;
+            return nextIndex >= 0 && nextIndex < imageFolder.length ? imageFolder[nextIndex] : null;
+        }
+
+        function setLightboxSwipeAnimating(isAnimating) {
+            captureLightboxImage.classList.toggle('is-swipe-animating', isAnimating);
+            captureLightboxAdjacentImage.classList.toggle('is-swipe-animating', isAnimating);
+        }
+
+        function clearLightboxSwipeAnimationTimer() {
+            window.clearTimeout(lightboxSwipeAnimationTimerId);
+            lightboxSwipeAnimationTimerId = 0;
+        }
+
+        function resetLightboxSwipeState(options = {}) {
+            clearLightboxSwipeAnimationTimer();
+            setLightboxSwipeAnimating(false);
+            lightboxSwipeOffsetX = 0;
+            lightboxSwipeDirection = 0;
+            lightboxSwipeAdjacentCapture = null;
+            lightboxSwipeIsDragging = false;
+            captureLightboxPanel.classList.remove('is-swipe-dragging');
+            captureLightboxAdjacentImage.classList.add('hidden');
+            captureLightboxAdjacentImage.classList.remove('is-visible');
+            captureLightboxAdjacentImage.removeAttribute('src');
+            captureLightboxAdjacentImage.style.removeProperty('transform');
+            captureLightboxAdjacentImage.style.removeProperty('opacity');
+
+            if (!options.keepCurrentTransform) {
+                captureLightboxImage.style.removeProperty('transform');
+            }
+        }
+
+        function prepareLightboxSwipeAdjacent(direction) {
+            if (direction === lightboxSwipeDirection && lightboxSwipeAdjacentCapture) {
+                return lightboxSwipeAdjacentCapture;
+            }
+
+            lightboxSwipeDirection = direction;
+            lightboxSwipeAdjacentCapture = getLightboxAdjacentCapture(direction);
+
+            if (lightboxSwipeAdjacentCapture) {
+                captureLightboxAdjacentImage.src = lightboxSwipeAdjacentCapture.objectUrl;
+                captureLightboxAdjacentImage.classList.remove('hidden');
+                captureLightboxAdjacentImage.classList.add('is-visible');
+            } else {
+                captureLightboxAdjacentImage.classList.add('hidden');
+                captureLightboxAdjacentImage.classList.remove('is-visible');
+                captureLightboxAdjacentImage.removeAttribute('src');
+            }
+
+            return lightboxSwipeAdjacentCapture;
+        }
+
+        function applyLightboxSwipeOffset(offsetX) {
+            const stageWidth = getLightboxStageWidth();
+            lightboxSwipeOffsetX = offsetX;
+            captureLightboxImage.style.transform = `translate3d(${offsetX}px, 0, 0)`;
+
+            if (lightboxSwipeAdjacentCapture && lightboxSwipeDirection) {
+                captureLightboxAdjacentImage.style.transform = `translate3d(${offsetX + (lightboxSwipeDirection * stageWidth)}px, 0, 0)`;
+            }
+        }
+
+        function updateLightboxSwipeDrag(event) {
+            if (lightboxImageScale > LIGHTBOX_MIN_SCALE + 0.01 || lightboxPointers.size !== 1) {
+                return false;
+            }
+
+            const deltaX = event.clientX - lightboxSwipeStartX;
+            const deltaY = event.clientY - lightboxSwipeStartY;
+            const absX = Math.abs(deltaX);
+            const absY = Math.abs(deltaY);
+
+            if (!lightboxSwipeIsDragging) {
+                if (absX < LIGHTBOX_SWIPE_START_THRESHOLD || absX < absY * LIGHTBOX_SWIPE_DIRECTION_RATIO) {
+                    return false;
+                }
+
+                lightboxSwipeIsDragging = true;
+                captureLightboxPanel.classList.add('is-swipe-dragging');
+                setLightboxNavigationVisible(false, { autoHide: false });
+            }
+
+            const direction = deltaX < 0 ? 1 : -1;
+            const adjacentCapture = prepareLightboxSwipeAdjacent(direction);
+            const offsetX = adjacentCapture ? deltaX : deltaX * LIGHTBOX_SWIPE_EDGE_RESISTANCE;
+            applyLightboxSwipeOffset(offsetX);
+            return true;
+        }
+
+        function finishLightboxSwipeDrag() {
+            if (!lightboxSwipeIsDragging) {
+                return false;
+            }
+
+            const direction = lightboxSwipeDirection;
+            const adjacentCapture = lightboxSwipeAdjacentCapture;
+            const stageWidth = getLightboxStageWidth();
+            const commitDistance = Math.max(LIGHTBOX_SWIPE_MIN_DISTANCE, stageWidth * LIGHTBOX_SWIPE_COMMIT_RATIO);
+            const shouldCommit = Boolean(adjacentCapture && direction && Math.abs(lightboxSwipeOffsetX) >= commitDistance);
+            const targetOffset = shouldCommit ? -direction * stageWidth : 0;
+            const adjacentTargetOffset = shouldCommit ? 0 : direction * stageWidth;
+
+            setLightboxSwipeAnimating(true);
+            applyLightboxSwipeOffset(targetOffset);
+
+            if (adjacentCapture && direction) {
+                captureLightboxAdjacentImage.style.transform = `translate3d(${adjacentTargetOffset}px, 0, 0)`;
+            }
+
+            lightboxSwipeAnimationTimerId = window.setTimeout(() => {
+                const nextCapture = shouldCommit ? adjacentCapture : null;
+                resetLightboxSwipeState();
+
+                if (nextCapture) {
+                    setLightboxCapture(nextCapture);
+                    setLightboxNavigationVisible(true);
+                } else {
+                    applyLightboxTransform();
+                }
+            }, LIGHTBOX_SWIPE_ANIMATION_MS);
+
+            return true;
         }
 
         function clampNumber(value, min, max) {
@@ -3240,6 +3449,7 @@
         }
 
         function resetLightboxTransform() {
+            resetLightboxSwipeState();
             lightboxPointers.clear();
             lightboxGesture = null;
             lightboxImageScale = LIGHTBOX_MIN_SCALE;
@@ -3304,7 +3514,10 @@
 
             if (isDoubleTap && lightboxImageScale > LIGHTBOX_MIN_SCALE) {
                 resetLightboxTransform();
+                return;
             }
+
+            toggleLightboxNavigation();
         }
 
         function handleLightboxPointerDown(event) {
@@ -3349,6 +3562,10 @@
                 lightboxTapMoved = tapDistance > LIGHTBOX_TAP_MOVE_TOLERANCE;
             }
 
+            if (updateLightboxSwipeDrag(event)) {
+                return;
+            }
+
             if (lightboxPointers.size >= 2 && lightboxGesture && lightboxGesture.type === 'pinch') {
                 const [first, second] = getLightboxPointerList();
                 const distance = Math.max(1, getLightboxPointerDistance(first, second));
@@ -3391,6 +3608,7 @@
                 && Math.abs(swipeDeltaX) >= LIGHTBOX_SWIPE_MIN_DISTANCE
                 && Math.abs(swipeDeltaX) > Math.abs(swipeDeltaY) * LIGHTBOX_SWIPE_DIRECTION_RATIO;
             const swipeDirection = isNavigationSwipe ? (swipeDeltaX < 0 ? 1 : -1) : 0;
+            const wasSwipeDragging = lightboxSwipeIsDragging;
 
             try {
                 captureLightboxImage.releasePointerCapture(event.pointerId);
@@ -3399,6 +3617,24 @@
             lightboxPointers.delete(event.pointerId);
             captureLightboxImage.classList.remove('is-panning');
 
+            if (wasSwipeDragging) {
+                lightboxGesture = null;
+                finishLightboxSwipeDrag();
+                return;
+            }
+
+            if (swipeDirection) {
+                lightboxGesture = null;
+                lightboxSwipeIsDragging = true;
+                captureLightboxPanel.classList.add('is-swipe-dragging');
+                setLightboxNavigationVisible(false, { autoHide: false });
+                const adjacentCapture = prepareLightboxSwipeAdjacent(swipeDirection);
+                const initialOffset = adjacentCapture ? swipeDeltaX : swipeDeltaX * LIGHTBOX_SWIPE_EDGE_RESISTANCE;
+                applyLightboxSwipeOffset(initialOffset);
+                finishLightboxSwipeDrag();
+                return;
+            }
+
             if (lightboxPointers.size >= 2) {
                 startLightboxPinchGesture();
             } else if (lightboxPointers.size === 1) {
@@ -3406,11 +3642,6 @@
             } else {
                 lightboxGesture = null;
                 applyLightboxTransform();
-            }
-
-            if (swipeDirection) {
-                navigateLightbox(swipeDirection);
-                return;
             }
 
             if (isTap) {
@@ -3424,6 +3655,7 @@
             }
 
             setLightboxCapture(capture);
+            setLightboxNavigationVisible(false, { autoHide: false });
             captureLightboxPanel.classList.remove('hidden');
             setFullscreenControlVisible(false);
         }
@@ -3431,6 +3663,7 @@
         function closeCaptureLightbox() {
             lightboxCapture = null;
             closeCaptureInfo();
+            setLightboxNavigationVisible(false, { autoHide: false });
             resetLightboxTransform();
             syncLightboxNavigationUi();
             captureLightboxImage.removeAttribute('src');

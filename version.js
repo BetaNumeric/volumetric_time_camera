@@ -1,1 +1,1 @@
-self.CAMERA_APP_VERSION = '2.07';
+self.CAMERA_APP_VERSION = '2.09';
